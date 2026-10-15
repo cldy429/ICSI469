@@ -1,13 +1,81 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="theme-color" content="#071b2c" />
+<meta name="description" content="NAADAM / Монгол эрийн гурван наадам — интерактив 3D, хөдөлгөөнт үр дүн, demo stream." />
+<title>NAADAM / Монгол эрийн гурван наадам</title>
+<link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-    <h1>Naaadam</h1>
-    <p>12312sd</p>
-    <p>manaihan jhn hariutslagatai baimaar baina </p>
+<div id="app" class="app">
+  <div class="top-line"></div>
+  <header class="topbar">
+    <a class="brand" href="#home" data-route="home" aria-label="Наадам нүүр хуудас">
+      <span class="brand-symbol" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 5 49 13 56 31 49 50 32 59 15 50 8 31 15 13Z"/><path d="M32 11C12 24 12 40 32 53c20-13 20-29 0-42Z"/><path d="M19 31h26M32 11v42M22 18c8 3 12 10 10 15 0 0-9-4-13 0m26-15c-8 3-12 10-13 15 0 0 9-4 13 0M18 43h28"/></svg></span>
+      <span class="brand-word">НААДАМ<span class="brand-year">/ 2026</span></span>
+    </a>
+    <nav class="nav" aria-label="Үндсэн цэс">
+      <a href="#home" data-route="home" class="nav-link active">Нүүр</a>
+      <a href="#wrestling" data-route="wrestling" class="nav-link">Бөх</a>
+      <a href="#racing" data-route="racing" class="nav-link">Морь</a>
+      <a href="#archery" data-route="archery" class="nav-link">Сур харваа</a>
+    </nav>
+    <div class="top-actions"><span class="stream-state"><span class="stream-dot"></span><span id="stream-status">DEMO STREAM</span></span><button type="button" id="sound-toggle" class="icon-button" aria-label="Дууг асаах, унтраах" aria-pressed="false" title="Дууг асаах/унтраах">♪</button><button type="button" id="menu-toggle" class="icon-button menu-toggle" aria-label="Цэс нээх" aria-expanded="false">☰</button></div>
+  </header>
+  <div class="mobile-nav" id="mobile-nav" hidden><a href="#home" data-route="home">Нүүр</a><a href="#wrestling" data-route="wrestling">Бөх</a><a href="#racing" data-route="racing">Морь</a><a href="#archery" data-route="archery">Сур харваа</a></div>
+  <main>
+    <section id="page-home" class="page active" aria-labelledby="home-title">
+      <div class="hero-scene">
+        <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="ornament-mini">✦</span> МОНГОЛ ӨВ • ШИНЭ ҮЕИЙН ТЕХНОЛОГИ <span class="eyebrow-line"></span></div>
+          <div class="vertical-mongol" aria-hidden="true">ᠨᠠᠭᠠᠳᠤᠮ</div>
+          <h1 id="home-title">ЭР <em>ХҮЧ.</em><br/>ӨВ <em>СОЁЛ.</em><br/><span class="stroke-title">НААДАМ.</span></h1>
+          <p class="hero-description">Монгол түмний хийморь болсон эрийн гурван наадмыг шинээр мэдэр. 3D талбай, хөдөлгөөнт үзүүлэлт, агшин бүрийн өөрчлөлт.</p>
+          <div class="hero-actions"><button type="button" class="btn btn-primary" data-go="racing">3D УРАЛДААН ҮЗЭХ <span>↗</span></button><button type="button" class="btn btn-ghost" data-go="wrestling">БӨХИЙН ТАЛБАЙ <span>↗</span></button></div>
+          <div class="hero-caption"><span class="small-gold">01 — 03</span><div class="thin-line"></div><span>ТҮҮХЭН ӨВ / DIGITAL EXPERIENCE</span></div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-ring"><span class="ring-label ring-label-top">N A A D A M</span><span class="ring-label ring-label-bottom">M O N G O L I A</span><div class="ring-center">✹</div></div>
+          <div class="hero-figure"><svg viewBox="0 0 590 580" role="img" aria-label="Монгол морьтон, тал нутгийн график дүрслэл"><defs><linearGradient id="horseGold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f4d18a"/><stop offset=".52" stop-color="#af7843"/><stop offset="1" stop-color="#4f392a"/></linearGradient><linearGradient id="dustFade" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#ca9b5f" stop-opacity=".38"/><stop offset="1" stop-color="#ca9b5f" stop-opacity="0"/></linearGradient></defs><path d="M60 448c83-94 144-119 240-60 84-88 148-59 225 18v107H60z" fill="url(#dustFade)"/><g class="horse-illustration" fill="url(#horseGold)" stroke="#301d18" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M120 341c57-31 113-40 174-27 46 8 83-8 113-48l28-66 25-12 24 20-3 37-34 22-26 76c-12 23-18 54-32 64l-46 4-26 86-26 20-15-14 20-115-86 2-52 109-23 5-14-21 39-135-31-8-17 67-14 4-15-23z"/><path d="m400 274 15-50 25-23 21 17-20 49z"/><path d="M127 335c-51-33-58-71-73-87 13 52 18 78 48 117z"/><path d="m433 189 35-18 16 35-9 14-17-20z"/><path d="M260 308c-21-30-18-61-6-90l35-36 35 4 17 56 19 54-18 22-41-15z" fill="#a92f36"/><circle cx="302" cy="158" r="27" fill="#b78a65"/><path d="M270 147c24-40 52-42 68-8-8 17-47 11-68 8" fill="#1d222b"/><path d="m265 229-44 61 10 16 59-50m42-10 60 52 27-8-70-76" fill="#caa673"/><path d="m252 311 38 3 9 64-30 19-24-43m67-38 36-3 25 55-25 26-29-42" fill="#182839"/></g><path d="M78 507h431" stroke="#e3b96e" stroke-width="2" stroke-opacity=".5" stroke-dasharray="6 13"/></svg></div>
+          <div class="hero-visual-caption"><span class="hero-number">03</span><span>ЭРИЙН ГУРВАН НААДАМ<br/><b>НЭГ ДИЖИТАЛ ТАЛБАР</b></span></div>
+        </div>
+        <div class="hero-bottom"><span>SCROLL TO EXPLORE</span><span class="scroll-icon">↓</span><span>ҮНДЭСНИЙ БАХАРХАЛ ✦</span></div>
+      </div>
+      <div class="home-lower">
+        <div class="section-top"><div><span class="micro-label">ТАЛБАРАА СОНГО</span><h2>ГУРВАН <em>ИХ ӨВ</em></h2></div><span class="side-note">ТҮҮХ, ӨРСӨЛДӨӨН, ТЕХНОЛОГИ</span></div>
+        <div class="sport-cards">
+          <button class="sport-card card-wrestling" type="button" data-go="wrestling"><span class="card-num">01 / БӨХ</span><span class="card-art">♜</span><span class="card-bottom"><span><b>ҮНДЭСНИЙ БӨХ</b><small>Бөхийн барилдаан · Оноолт · 3D</small></span><span class="card-arrow">↗</span></span></button>
+          <button class="sport-card card-racing" type="button" data-go="racing"><span class="card-num">02 / МОРЬ</span><span class="card-art">♞</span><span class="card-bottom"><span><b>ХУРДАН МОРЬ</b><small>3D уралдаан · Шууд явц · Байрлал</small></span><span class="card-arrow">↗</span></span></button>
+          <button class="sport-card card-archery" type="button" data-go="archery"><span class="card-num">03 / СУР</span><span class="card-art archery-art">◎</span><span class="card-bottom"><span><b>СУР ХАРВАА</b><small>3D бай · Оноо · Харвааны замнал</small></span><span class="card-arrow">↗</span></span></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="page-racing" class="page sport-page" aria-labelledby="racing-title">
+      <div class="page-heading"><div><span class="micro-label"><span class="gold-star">✦</span> 02 / ЭРИЙН ГУРВАН НААДАМ</span><h2 id="racing-title">ХУРДАН <em>МОРЬ</em><span class="heading-asterisk">✳</span></h2><p>Тал нутгийн хийморь — 3D симуляци дахь уралдааны явцыг агшин бүрд дагаарай.</p></div><div class="demo-pill"><span class="stream-dot"></span> DEMO · SIMULATED EVENT DATA</div></div>
+      <div class="racing-grid">
+        <div class="race-main"><div class="viewer-bar"><div class="viewer-title"><span class="live-flag"><span class="stream-dot"></span> LIVE VISUALIZATION</span><span>3D RACE ARENA</span></div><div class="viewer-controls"><button type="button" class="viewer-control" id="camera-reset" title="Камерыг буцаах">⟳ <span>Камер</span></button><button type="button" class="viewer-control" id="race-pause">Ⅱ <span>Зогсоох</span></button></div></div>
+          <div class="canvas-wrap"><div id="race-canvas" class="webgl-layer" aria-label="Хурдан морины 3D уралдааны талбай"></div><div class="canvas-fallback" id="race-fallback"><span class="fallback-sun">☼</span><span>3D ҮЗҮҮЛЭЛТ АЧААЛЖ БАЙНА…</span><small>Three.js ашиглан талбай дүрслэнэ</small></div><div class="view-hud hud-left"><span>Камер</span><b>ORBIT / INTERACTIVE</b></div><div class="view-hud hud-right"><span>FRAME UPDATE</span><b id="hud-fps">—</b></div><div class="scene-bottom">Чирж эргүүлнэ · Scroll хийж ойртуулна <span>◉ 3D</span></div></div>
+          <div class="race-timeline"><div class="timeline-top"><span>УРАЛДААНЫ ЯВЦ</span><strong id="race-distance">0 / 18,000 м</strong></div><div class="track-progress"><div id="track-fill" class="track-fill"></div><span class="finish-flag">⚑</span></div><div class="timeline-foot"><span>ГАРАА</span><span id="race-phase">Уралдаан үргэлжилж байна</span><span>БАРИА</span></div></div>
+        </div>
+        <aside class="racing-aside"><div class="aside-top"><span class="micro-label">УРАЛДААНЫ АНГИЛАЛ</span><div class="age-tabs" role="group" aria-label="Морины насны ангилал"><button class="age-tab active" data-age="Азарга" type="button">Азарга</button><button class="age-tab" data-age="Соёолон" type="button">Соёолон</button><button class="age-tab" data-age="Их нас" type="button">Их нас</button></div></div><div class="aside-heading"><h3>ТЭРГҮҮЛЖ БУЙ <em>МОРЬД</em></h3><span id="racer-count">06 / 06</span></div><div id="leaderboard" class="leaderboard" aria-live="polite"></div><div class="aside-footer"><div><small>ДЭЭЖ ХУРД</small><b id="top-speed">— км/ц</b></div><div><small>STREAM UPDATE</small><b id="last-update">—</b></div></div></aside>
+      </div>
+    </section>
+
+    <section id="page-wrestling" class="page sport-page" aria-labelledby="wrestling-title">
+      <div class="page-heading"><div><span class="micro-label"><span class="gold-star">✦</span> 01 / ЭРИЙН ГУРВАН НААДАМ</span><h2 id="wrestling-title">ҮНДЭСНИЙ <em>БӨХ</em><span class="heading-asterisk">✳</span></h2><p>Эр бяр, уран мэх, ёс жудаг. Бөхийн талбайг 3D орчинд мэдэр.</p></div><div class="demo-pill"><span class="stream-dot"></span> DEMO · MATCH SIMULATION</div></div>
+      <div class="wrestling-grid"><div class="wrestling-visual"><div class="viewer-bar"><div class="viewer-title"><span class="live-flag">3D ТАЛБАЙ</span><span>MONGOLIAN WRESTLING</span></div><button type="button" class="viewer-control" id="wrestle-reset">⟳ <span>Камер</span></button></div><div class="canvas-wrap short-canvas"><div id="wrestling-canvas" class="webgl-layer"></div><div class="canvas-fallback" id="wrestling-fallback"><span class="fallback-sun">✹</span><span>3D БӨХИЙН ТАЛБАЙ</span></div><div class="scene-bottom">Чирж талбайг эргүүлнэ <span>◉ 3D</span></div></div><div class="wrestling-caption"><span>ӨРСӨЛДӨӨНИЙ АГШИН</span><strong id="match-callout">БАРИЛДААН ЭХЭЛЛЭЭ</strong></div></div><div class="bracket-panel"><div class="bracket-header"><div><span class="micro-label">ТОГЛОЛТЫН СИМУЛЯЦИ</span><h3>БӨХИЙН <em>ОНООЛТ</em></h3></div><button type="button" class="outline-small" id="next-match">ДАРААГИЙН БАРИЛДААН →</button></div><div class="round-label">I ДАВАА <span class="line-fade"></span> II ДАВАА</div><div id="bracket" class="bracket"></div><div class="bracket-foot"><span><i class="legend-red"></i> Ялагч</span><span><i class="legend-muted"></i> Хүлээгдэж буй</span><button type="button" id="reset-bracket" class="text-button">↻ Шинээр эхлэх</button></div></div></div>
+    </section>
+
+    <section id="page-archery" class="page sport-page" aria-labelledby="archery-title"><div class="page-heading"><div><span class="micro-label"><span class="gold-star">✦</span> 03 / ЭРИЙН ГУРВАН НААДАМ</span><h2 id="archery-title">СУР <em>ХАРВАА</em><span class="heading-asterisk">✳</span></h2><p>Мэргэн харваачдын оюун ухаан, хараа, төвлөрлийг 3D дүрслэлээр.</p></div><div class="demo-pill"><span class="stream-dot"></span> DEMO · SCORE SIMULATION</div></div>
+      <div class="archery-grid"><div class="archery-visual"><div class="viewer-bar"><div class="viewer-title"><span class="live-flag">3D TARGET VIEW</span><span>ARROW TRAJECTORY</span></div><button type="button" class="viewer-control" id="archery-reset">⟳ <span>Камер</span></button></div><div class="canvas-wrap short-canvas"><div id="archery-canvas" class="webgl-layer"></div><div class="canvas-fallback" id="archery-fallback"><span class="fallback-sun">◎</span><span>3D СУРЫН БАЙ</span></div><div class="scene-bottom">3D байг эргүүлж харна <span>◉ 3D</span></div></div><div class="archery-caption"><span>СҮҮЛИЙН ХАРВАА</span><strong id="last-shot">БАЙНД ТУСАХЫГ ХҮЛЭЭНЭ ҮҮ</strong></div></div><div class="archery-panel"><div class="bracket-header"><div><span class="micro-label">ОНООНЫ ХЯНАЛТ</span><h3>МЭРГЭН <em>ХАРВАА</em></h3></div><span class="score-count">8 СУМ</span></div><div class="archer-profile"><span class="archer-avatar">🏹</span><div><small>ХАРВААЧ</small><b id="archer-name">Б. Мөнх-Эрдэнэ</b><span>Мэргэн харваач · Демо</span></div></div><div class="score-summary"><div><small>НИЙТ ОНОО</small><strong id="archery-score">0<span>/ 80</span></strong></div><div><small>ХАРВСАН СУМ</small><strong id="shot-counter">0<span>/ 8</span></strong></div></div><div id="shot-list" class="shot-list"></div><div class="archery-actions"><button type="button" id="shoot-arrow" class="btn btn-primary">СУМ ТАВИХ <span>↗</span></button><button type="button" id="reset-shots" class="btn btn-ghost">ШИНЭЭР ЭХЛЭХ <span>↺</span></button></div><p class="help-note">※ Оноо нь сургалтын зориулалттай симуляци; бодит тэмцээний дүрэм, үр дүн биш.</p></div></div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="footer-mark">✹ <b>НААДАМ</b> <span>THE THREE GAMES OF MONGOLIA</span></div><span>ҮНДЭСНИЙ ӨВ / ДИЖИТАЛ ИРЭЭДҮЙ</span><span>CONCEPT PROTOTYPE © 2026</span></footer>
+</div>
+<script type="module" src="./app.js"></script>
 </body>
 </html>
