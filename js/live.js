@@ -1,7 +1,8 @@
 // NAADAM live — бодит зураг, бөхийн профайл + давах магадлал, ялагчийн баяр,
-// дуу, барианы самбар, үзэгчдийн сэтгэгдэл, subscription.
+// дуу, барианы самбар, наадмын талбай дээрх цэгүүд, Live хуудас, үзэгчдийн сэтгэгдэл, subscription.
 // app.js-ийн 'naadam:*' үйл явдлуудыг сонсож ажиллана.
-import {PHOTOS, LEGENDS, rating, winChance, SOURCES} from './data.js';
+import {PHOTOS, LEGENDS, NAADAM_2026, rating, winChance, SOURCES} from './data.js';
+import {WrestlingField, RaceField, ArcheryField, fighterStates, setFieldLabels} from './field.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21,7 +22,9 @@ const initials = l => { const given = l.name.split(' ').pop(), parts = given.spl
 const AVATAR_COLORS = [['#e0524a', '#7a1f2b'], ['#3d8bd4', '#173e63'], ['#e8b86a', '#9a5b1e'], ['#5cc98a', '#1f5e44'], ['#b07ad8', '#4a2468'], ['#f08a4b', '#8a3a12'], ['#4fc1c9', '#145a63'], ['#d8697f', '#6b2133']];
 const avatar = (i, cls = '') => {
   const [c1, c2] = AVATAR_COLORS[i % AVATAR_COLORS.length];
-  return `<span class="lv-avatar ${cls}" style="--c1:${c1};--c2:${c2}">${esc(initials(LEGENDS[i]))}</span>`;
+  const photo = LEGENDS[i].photo;
+  return photo ? `<span class="lv-avatar has-photo ${cls}" style="--c1:${c1};--c2:${c2};background-image:url('${photo.src}')" role="img" aria-label="${esc(legendName(LEGENDS[i]))}"></span>`
+    : `<span class="lv-avatar ${cls}" style="--c1:${c1};--c2:${c2}">${esc(initials(LEGENDS[i]))}</span>`;
 };
 const last = name => window.naadamLast?.[name];
 
@@ -92,9 +95,10 @@ function buildHero() {
       <div>
         <span class="lv-chip"><i></i>${t('ҮНДЭСНИЙ ИХ БАЯР НААДАМ · 2027', 'NATIONAL NAADAM FESTIVAL · 2027')}</span>
         <h1>${t('Эрийн гурван<br/><em>наадам.</em>', 'Three manly<br/><em>games.</em>')}</h1>
-        <p>${t('Бөх, хурдан морь, сур харваа — олон зуун жилийн түүхтэй их баярыг бодит зураг, шууд үр дүн, 3D талбайгаар мэдэр. Аваргуудаа таниад, дэмжиж, сэтгэгдлээ үлдээ.', 'Wrestling, horse racing and archery — experience a festival with centuries of history through real photos, live results and an optional 3D arena.')}</p>
+        <p>${t('Бөх, хурдан морь, сур харваа — олон зуун жилийн түүхтэй их баярыг бодит зураг, наадмын талбай, шууд дүрслэлээр мэдэр. Аваргуудаа таниад, дэмжиж, сэтгэгдлээ үлдээ.', 'Wrestling, horse racing and archery — experience a festival with centuries of history through real photos, an interactive Naadam field and a live view.')}</p>
         <div class="lv-cta">
           <button class="lv-btn red" data-go="wrestling">${t('Бөхийн барилдаан', 'Watch wrestling')} →</button>
+          <button class="lv-btn ghost lv-live-cta" data-go="live"><i></i>${t('Live үзэх', 'Watch live')}</button>
           <button class="lv-btn ghost" data-go="racing">${t('Морины уралдаан', 'Horse race')}</button>
           <button class="lv-btn ghost" data-scroll="lv-subscribe">${t('Subscribe хийх', 'Subscribe')} ★</button>
         </div>
@@ -165,11 +169,72 @@ function buildHomeSections() {
     <div data-comments="home"></div>
   </section>`);
   const sub = el(`<section class="lv-section lv-home-extra" id="lv-subscribe"></section>`);
-  lower.after(legends, talk, sub);
+  const n26 = naadam2026(); n26.classList.add('lv-home-extra');
+  lower.after(legends, n26, talk, sub);
   $$('[data-legend]', legends).forEach(b => b.addEventListener('click', () => openProfile(+b.dataset.legend)));
   buildSubscription(sub);
   mountComments($('[data-comments="home"]', talk), 'home');
   buildCredits();
+}
+
+/* ---------------- Naadam 2026 results (real, from mn.wikipedia) ---------------- */
+/* ---------------- Archery guide: styles and titles (facts from mn.wikipedia "Сур харваа" and enaadam.mn) ---------------- */
+const ARCH_STYLES = [
+  {mn: 'Халх сур', en: 'Khalkh', dist: ['Эрэгтэй 75 м · эмэгтэй 65 м', 'Men 75 m · women 65 m'], arrows: ['40 сум: 16 + 12 + 12', '40 arrows: 16 + 12 + 12'], target: ['8×8 см хэмжээтэй 30 сурын хана, голын 2 нь улаан', 'A wall of 30 sur, 8×8 cm each; the middle 2 are red'], on: true},
+  {mn: 'Урианхай сур', en: 'Uriankhai', dist: ['40–50 м', '40–50 m'], arrows: ['Нэг ээлжинд 3–4 сум', '3–4 arrows per turn'], target: ['Газарт зэрэгцүүлсэн сурын эгнээ', 'A row of sur on the ground']},
+  {mn: 'Буриад сур', en: 'Buryat', dist: ['30 м ба 45 м', '30 m and 45 m'], arrows: ['64 сум', '64 arrows'], target: ['4 м талтай дөрвөлжин зурхай', 'A 4 m square zurkhai']},
+];
+const ARCH_TITLES = [
+  ['Улсын мэргэн', 'State Marksman', 'Улсын наадамд 1 удаа түрүүлбэл', '1 win at the State Naadam'],
+  ['Даян мэргэн', 'Dayan Marksman', '2 удаа түрүүлбэл', '2 wins'],
+  ['Даяар дуурсах мэргэн', 'Famed Marksman', '3 удаа түрүүлбэл', '3 wins'],
+  ['Дархан мэргэн', 'Darkhan Marksman', '4 удаа түрүүлбэл', '4 wins'],
+  ['Гарамгай харваач', 'Garamgai archer', '2-р байр', '2nd place'],
+  ['Гоц харваач', 'Gots archer', '3-р байр', '3rd place'],
+];
+function archeryGuide() {
+  return el(`<div class="lv-arch-info lv-panel">
+    <div class="lv-head"><div><span class="lv-kicker">${t('СУР ХАРВААНЫ ТӨРЛҮҮД', 'STYLES OF MONGOLIAN ARCHERY')}</span><h3>${t('Гурван төрөл, нэг', 'Three styles, one')} <em>${t('уухай', 'uukhai')}</em></h3></div></div>
+    <div class="lv-arch-styles">${ARCH_STYLES.map(x => `<article class="${x.on ? 'on' : ''}"><h4>${t(x.mn, x.en)}${x.on ? ` <small>${t('дээрх тоглоом', 'used above')}</small>` : ''}</h4>
+      <dl><dt>${t('Зай', 'Distance')}</dt><dd>${t(...x.dist)}</dd><dt>${t('Сум', 'Arrows')}</dt><dd>${t(...x.arrows)}</dd><dt>${t('Бай', 'Target')}</dt><dd>${t(...x.target)}</dd></dl></article>`).join('')}</div>
+    <div class="lv-arch-cols">
+      <div><span class="lv-kicker">${t('ЦОЛ', 'TITLES')}</span><ol class="lv-arch-titles">${ARCH_TITLES.map(([a, b, c, d]) => `<li><b>${t(a, b)}</b><span>${t(c, d)}</span></li>`).join('')}</ol></div>
+      <div><span class="lv-kicker">${t('УУХАЙ БА НУМ', 'UUKHAI AND THE BOW')}</span>
+        <p>${t('Сум сурыг онох үед байны хоёр талд зогсох засуулууд гараа өргөж, "уухай" хэмээн уртаар дуудна. Уухай гурван аялгуутай бөгөөд тус бүрийг гурав давтдаг.', 'When an arrow hits, the judges standing on both sides of the target raise their arms and sing a long "uukhai". There are three uukhai melodies, each repeated three times.')}</p>
+        <p>${t('Монгол нум нь эвэр, шөрмөс, модоор хийсэн нийлмэл нум юм.', 'The Mongolian bow is a composite bow of horn, sinew and wood.')}</p>
+        <p class="lv-src">${t('Эх сурвалж', 'Sources')}: <a href="https://mn.wikipedia.org/wiki/%D0%A1%D1%83%D1%80_%D1%85%D0%B0%D1%80%D0%B2%D0%B0%D0%B0" target="_blank" rel="noopener">mn.wikipedia · Сур харваа</a> · <a href="https://enaadam.mn/about/national-sport/archery" target="_blank" rel="noopener">enaadam.mn</a></p>
+      </div>
+    </div>
+  </div>`);
+}
+function naadam2026() {
+  const N = NAADAM_2026, nm = p => esc(t(p.name, p.en)), rk = p => esc(t(p.rank, p.rankEn));
+  const person = (p, place, cls = '') => {
+    const tag = p.legend != null ? 'button' : 'div';
+    return `<${tag} ${tag === 'button' ? `type="button" data-legend="${p.legend}"` : ''} class="lv-n26-person ${cls}">
+      ${p.legend != null ? avatar(p.legend) : `<span class="lv-avatar" style="--c1:#5b6b73;--c2:#26384a">${esc(p.name.split(' ').pop().slice(0, 2))}</span>`}
+      <span><small>${place}</small><b>${nm(p)}</b><em>${rk(p)}</em></span></${tag}>`;
+  };
+  const box = el(`<section class="lv-section lv-n26">
+    <div class="lv-head"><div><span class="lv-kicker">${t('ЭНЭ ЗУНЫ НААДАМ · 2026', 'THIS SUMMER · NAADAM 2026')}</span><h2>${t('1024 бөхийн их барилдаан', 'The great 1,024-wrestler tournament')}</h2></div>
+      <p>${esc(t(N.dates.mn, N.dates.en))}. ${t('Ардын хувьсгалын 105 жилийн ойн наадамд 1024 бөх 10 даваа барилдсан. Бодит үр дүн.', 'For the 105th anniversary of the People\'s Revolution, 1,024 wrestlers competed over 10 rounds. Real results.')}
+        <a href="${N.source}" target="_blank" rel="noopener">${t('Эх сурвалж: Википедиа', 'Source: Wikipedia (mn)')}</a></p></div>
+    <div class="lv-n26-grid">
+      <div class="lv-n26-stats">
+        <div><b>${N.wrestlers}</b><span>${t('бөх барилдсан', 'wrestlers')}</span></div>
+        <div><b>${N.rounds}</b><span>${t('даваа', 'rounds')}</span></div>
+        ${N.titles.map(([mn, en, n]) => `<div><b>${n}</b><span>${esc(t(mn, en))} ${t('цол', 'title')}</span></div>`).join('')}
+      </div>
+      <div class="lv-n26-podium">
+        ${person(N.champion, '🏆 ' + t('Түрүү', 'Champion'), 'gold')}
+        ${person(N.runnerUp, '🥈 ' + t('Үзүүр', 'Runner-up'))}
+        ${N.semis.map(p => person(p, t('Шөвгийн дөрөв', 'Final four'))).join('')}
+        <p class="lv-n26-note">${t('Б.Орхонбаяр шөвгийн дөрөвт улсын заан М.Лхагвагэрэлийг, шигшээд улсын заан Б.Бат-Өлзийг даваад даян аварга цол хүртсэн.', 'B. Orkhonbayar beat State Elephant M. Lkhagvagerel in the semi-final and State Elephant B. Bat-Ölzii in the final to become Wide Champion.')}</p>
+      </div>
+    </div>
+  </section>`);
+  $$('[data-legend]', box).forEach(b => b.addEventListener('click', () => openProfile(+b.dataset.legend)));
+  return box;
 }
 
 function buildCredits() {
@@ -225,7 +290,7 @@ function buildSubscription(box) {
 /* ---------------- Comments ---------------- */
 const commentBoxes = new Set();
 let commentCache = [];
-const TOPIC_LABEL = {home: ['Ерөнхий', 'General'], wrestling: ['Бөх', 'Wrestling'], racing: ['Морь', 'Racing'], archery: ['Сур', 'Archery']};
+const TOPIC_LABEL = {home: ['Ерөнхий', 'General'], live: ['Live', 'Live'], wrestling: ['Бөх', 'Wrestling'], racing: ['Морь', 'Racing'], archery: ['Сур', 'Archery']};
 function timeAgo(iso) {
   const s = Math.max(1, (Date.now() - new Date(iso)) / 1000);
   if (s < 60) return t('саяхан', 'just now');
@@ -314,53 +379,40 @@ async function loadComments() {
   commentBoxes.forEach(renderCommentBox);
 }
 
-/* ---------------- Sport pages: photo banners, photo stage ↔ 3D ---------------- */
+/* ---------------- Sport pages: photo banners + field views ---------------- */
 const PAGES = {
-  wrestling: {banner: PHOTOS.wrestling, stage: PHOTOS.wrestlers, canvas: '#wrestling-canvas', mn: 'Талбай дээр барилдаж буй бөхчүүд — дээр нь дарж мэдээллийг нь үз.', en: 'Wrestlers on the field — tap one to see their profile.'},
-  racing: {banner: PHOTOS.racers, stage: PHOTOS.race, canvas: '#race-canvas', mn: 'Хүүхэд унаачид, хурдан хүлгүүд — тал нутгийн хийморь.', en: 'Young riders and swift horses of the steppe.'},
-  archery: {banner: PHOTOS.archery, stage: PHOTOS.archer, canvas: '#archery-canvas', mn: 'Мэргэн харваачид — "Уухай!" дуудлагын дор.', en: 'Master archers — to the call of "Uukhai!".'},
+  wrestling: {banner: PHOTOS.wrestling, mn: 'Талбай дээр барилдаж буй бөхчүүд — цэг дээр дарж мэдээллийг нь үз.', en: 'Wrestlers on the field — tap a dot to see their profile.'},
+  racing: {banner: PHOTOS.racers, mn: 'Хүүхэд унаачид, хурдан хүлгүүд — тал нутгийн хийморь.', en: 'Young riders and swift horses of the steppe.'},
+  archery: {banner: PHOTOS.archery, mn: 'Мэргэн харваачид — "Уухай!" дуудлагын дор.', en: 'Master archers — to the call of "Uukhai!".'},
 };
-const want3D = () => store.get('naadam-3d') === 'on';
+const fields = {};
+const wrestlerOpts = onPick => ({colors: AVATAR_COLORS, initials: i => initials(LEGENDS[i]), name: i => legendName(LEGENDS[i]), onPick});
+const pickRacer = i => window.naadamApp?.selectRacer(i);
 function buildSportPages() {
   for (const [page, cfg] of Object.entries(PAGES)) {
     const section = $('#page-' + page); if (!section) continue;
-    $$('.lv-banner, .lv-page-comments', section).forEach(n => n.remove());
+    $$('.lv-banner, .lv-page-comments, .lv-n26, .lv-arch-info', section).forEach(n => n.remove());
     const banner = el(`<div class="lv-banner" style="background-image:url('${cfg.banner.src}')"><strong>${t(cfg.mn, cfg.en)}</strong>${credit(cfg.banner)}</div>`);
     $('.page-heading', section)?.after(banner);
-    const wrap = $(cfg.canvas, section)?.closest('.canvas-wrap');
-    if (wrap) {
-      $('.lv-stage', wrap)?.remove();
-      const stage = el(`<div class="lv-stage" style="background-image:url('${cfg.stage.src}')">
-        ${page === 'wrestling' ? `<span class="lv-tap-hint">👆 ${t('Бөх дээр дарж мэдээлэл харах', 'Tap a wrestler for info')}</span><div class="lv-vs" id="lv-stage-vs"></div>` : `<span>${credit(cfg.stage)}</span>`}
-        <button type="button" class="lv-3d-btn" data-3d="on">◉ ${t('3D-ээр үзэх', 'View in 3D')}</button>
-      </div>`);
-      wrap.append(stage);
-      wrap.classList.toggle('is-photo', !want3D());
-      $('[data-3d]', stage).addEventListener('click', () => set3D(true));
-    }
-    const bar = $(cfg.canvas, section)?.closest('.race-main, .wrestling-visual, .archery-visual')?.querySelector('.viewer-bar');
-    if (bar) {
-      $('.lv-view-toggle', bar)?.remove();
-      const toggle = el(`<button type="button" class="viewer-control lv-view-toggle"></button>`);
-      toggle.addEventListener('click', () => set3D(!want3D()));
-      const controls = $('.viewer-controls', bar) || $('.viewer-control', bar);
-      controls ? controls.before(toggle) : bar.append(toggle);
-    }
     const comments = el(`<div class="lv-page-comments lv-panel"><div class="lv-head" style="margin-bottom:16px"><div><span class="lv-kicker">${t('ҮЗЭГЧДИЙН СЭТГЭГДЭЛ', 'FAN COMMENTS')}</span></div></div><div data-comments="${page}"></div></div>`);
+    if (page === 'wrestling') section.append(naadam2026());
+    if (page === 'archery') section.append(archeryGuide());
     section.append(comments);
     mountComments($('[data-comments]', comments), page);
   }
-  syncToggles();
+  const wf = $('#wrestling-field');
+  if (wf) {
+    fields.wrestling = new WrestlingField(wf, wrestlerOpts(openProfile));
+    fields.wrestling.update(last('bracket'));
+    const wrap = wf.closest('.canvas-wrap');
+    $$('.lv-field-ui', wrap).forEach(n => n.remove());
+    wrap.append(el(`<span class="lv-tap-hint lv-field-ui">👆 ${t('Бөх дээр дарж мэдээлэл харах', 'Tap a wrestler for info')}</span>`));
+  }
+  const rf = $('#race-field');
+  if (rf) { fields.race = new RaceField(rf, {onPick: pickRacer}); if (last('race')) fields.race.update(last('race')); }
+  const af = $('#archery-field');
+  if (af) { fields.archery = new ArcheryField(af); fields.archery.update(last('archery')); }
   renderMatchup();
-}
-function syncToggles() {
-  $$('.lv-view-toggle').forEach(b => { b.innerHTML = want3D() ? `▣ <span>${t('Зураг', 'Photo')}</span>` : `◉ <span>3D</span>`; });
-  $$('.lv-stage').forEach(s => s.closest('.canvas-wrap')?.classList.toggle('is-photo', !want3D()));
-}
-function set3D(on) {
-  store.set('naadam-3d', on ? 'on' : 'off');
-  syncToggles();
-  if (on) window.naadamApp?.load3D(); else window.naadamApp?.unload3D();
 }
 
 /* ---------------- Wrestling: matchup, probability, profile, celebration ---------------- */
@@ -369,9 +421,6 @@ function renderMatchup() {
   const section = $('#page-wrestling'); if (!section) return;
   const [a, b] = currentPair();
   const done = last('bracket') && !last('bracket').next;
-  const vs = $('#lv-stage-vs');
-  if (vs) vs.innerHTML = done ? '' : `${pill(a)}<span class="lv-vs-mark">VS</span>${pill(b)}`;
-  $$('[data-profile]', vs || document.createElement('div')).forEach(x => x.addEventListener('click', () => openProfile(+x.dataset.profile)));
   let card = $('.lv-matchup', section);
   if (!card) { card = el('<div class="lv-matchup"></div>'); $('.bracket-panel', section)?.append(card); }
   if (done) {
@@ -396,7 +445,6 @@ function renderMatchup() {
   }
   $$('[data-profile]', card).forEach(x => x.addEventListener('click', () => openProfile(+x.dataset.profile)));
 }
-const pill = i => `<button type="button" class="lv-fighter-pill" data-profile="${i}">${avatar(i)}<span><b>${esc(legendName(LEGENDS[i]))}</b><small>${LEGENDS[i].wins} ${t('түрүү', 'titles')}</small></span></button>`;
 function countUp(node, to, suffix = '') {
   const from = parseInt(node.textContent) || 0, start = performance.now(), dur = reduced ? 1 : 900;
   const step = now => { const k = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - k, 3); node.textContent = Math.round(from + (to - from) * e) + suffix; if (k < 1) requestAnimationFrame(step); };
@@ -409,26 +457,38 @@ function openProfile(i) {
   drawer?.remove();
   const [a, b] = currentPair(), inNext = last('bracket')?.next && (i === a || i === b);
   const opp = i === a ? b : a, chance = inNext ? winChance(l, LEGENDS[opp]) : null;
+  const pathHtml = (l.path || []).map(([level, year, mn, en]) => `<li class="lv-step ${level}"><i></i><span><b>${esc(t(mn, en))}</b><small>${year ?? '—'} · ${t({sum: 'Сумын', aimag: 'Аймгийн', state: 'Улсын'}[level], {sum: 'Sum', aimag: 'Aimag', state: 'State'}[level])} ${t('наадам', 'Naadam')}</small></span></li>`).join('');
   drawer = el(`<div class="lv-drawer-wrap" role="dialog" aria-modal="true" aria-label="${esc(legendName(l))}">
     <div class="lv-backdrop"></div>
     <aside class="lv-drawer">
-      <div class="lv-drawer-hero">
+      <div class="lv-drawer-hero" style="--hero:url('${(l.photo || PHOTOS.wrestlers).src}')">
         <button type="button" class="lv-close" aria-label="${t('Хаах', 'Close')}">✕</button>
-        ${avatar(i)}
+        ${avatar(i, 'lv-avatar-xl')}
         <h3>${esc(legendName(l))}</h3>
-        <p>${t('Улсын баяр наадмын аварга', 'National Naadam champion')} · ${esc(l.years)}</p>
+        <p><span class="lv-rank-chip">${esc(t(l.title.mn, l.title.en))}</span> ${esc(lang() === 'mn' ? l.full : l.en)}</p>
+        ${l.photo ? `<span class="lv-photo-credit">📷 <a href="${l.photo.page}" target="_blank" rel="noopener">${esc(l.photo.author)}</a> · ${l.photo.license}</span>`
+          : `<span class="lv-photo-credit">${t('Чөлөөт лицензтэй хөрөг олдсонгүй · Ард: наадмын бөх', 'No free-licence portrait found · Background: Naadam wrestlers')} (${esc(PHOTOS.wrestlers.author)}, ${PHOTOS.wrestlers.license})</span>`}
       </div>
       <div class="lv-drawer-body lv-reveal">
         <div class="lv-kpis">
-          <div><b data-count="${l.wins}">0</b><small>${t('Түрүү', 'Titles')}</small></div>
+          <div><b data-count="${l.wins}">0</b><small>${t('Улсын түрүү', 'State titles')}</small></div>
           <div><b data-count="${l.runnerUp}">0</b><small>${t('Үзүүр', 'Runner-up')}</small></div>
           <div><b data-count="${rating(l)}">0</b><small>${t('Хүч (симуляц)', 'Rating (sim)')}</small></div>
         </div>
-        <div><h4>${t('ТҮРҮҮЛСЭН ОНУУД', 'TITLE YEARS')}</h4><p>${esc(l.years)}</p></div>
+        <div class="lv-facts">
+          <div><small>${t('ТӨРСӨН', 'BORN')}</small><b>${l.born}</b></div>
+          <div><small>${t('НУТАГ', 'HOMETOWN')}</small><b>${esc(t(l.home.mn, l.home.en))}</b></div>
+          <div><small>${t('УЛСАД ТҮРҮҮЛСЭН', 'STATE TITLES')}</small><b>${esc(l.years)}</b></div>
+        </div>
+        <div><h4>${t('ЦОЛНЫ ЗАМ', 'TITLE PATH')}</h4><ol class="lv-path">${pathHtml}</ol></div>
+        <div><h4>${t('СУМ, АЙМГИЙН НААДАМ', 'SUM & AIMAG NAADAM')}</h4><p>${esc(t(l.local.mn, l.local.en))}</p></div>
         <div><h4>${t('ОНЦЛОХ', 'HIGHLIGHT')}</h4><p>${esc(l.note[lang()])}</p></div>
+        <div><h4>${t('ШАГНАЛ, БУСАД АМЖИЛТ', 'AWARDS & MORE')}</h4><p>${esc(t(l.awards.mn, l.awards.en))}</p></div>
         ${inNext ? `<div><h4>${t('ДАРААГИЙН БАРИЛДААН', 'NEXT BOUT')}</h4><p>${t('Өрсөлдөгч', 'Opponent')}: <b>${esc(legendName(LEGENDS[opp]))}</b></p>
-          <div class="lv-prob"><div class="lv-prob-bar"><i style="width:0"></i><i style="width:100%"></i></div><div class="lv-prob-nums"><span>${t('Давах', 'Win')} <b data-count="${Math.round(chance * 100)}">0</b>%</span><span></span></div></div></div>` : ''}
-        <p class="lv-src">${t('Эх сурвалж', 'Source')}: <a href="${SOURCES.wrestling}" target="_blank" rel="noopener">Wikipedia — Mongolian wrestling</a></p>
+          <div class="lv-prob"><div class="lv-prob-bar"><i style="width:0"></i><i style="width:100%"></i></div><div class="lv-prob-nums"><span>${t('Давах', 'Win')} <b data-count="${Math.round(chance * 100)}">0</b>%</span><span></span></div></div>
+          <p class="lv-prob-note">※ ${t('Магадлал нь симуляц', 'Win chance is a simulation')}</p></div>` : ''}
+        ${i < 8 ? `<button type="button" class="lv-btn red lv-watch" data-live="${i}"><i></i>${t('Live үзэх', 'Watch live')} →</button>` : ''}
+        <p class="lv-src">${t('Эх сурвалж', 'Source')}: <a href="${l.wiki}" target="_blank" rel="noopener">${t('Википедиа', 'Wikipedia (mn)')} — ${esc(l.full)}</a> · <a href="${SOURCES.wrestling}" target="_blank" rel="noopener">Wikipedia — Mongolian wrestling</a></p>
       </div>
     </aside>
   </div>`);
@@ -437,6 +497,7 @@ function openProfile(i) {
   const onKey = e => { if (e.key === 'Escape') close(); };
   $('.lv-close', drawer).addEventListener('click', close);
   $('.lv-backdrop', drawer).addEventListener('click', close);
+  $('[data-live]', drawer)?.addEventListener('click', () => { close(); watchLive(i); });
   document.addEventListener('keydown', onKey);
   requestAnimationFrame(() => requestAnimationFrame(() => {
     drawer.classList.add('open');
@@ -500,22 +561,18 @@ function confetti(canvas, count) {
   requestAnimationFrame(step);
 }
 
-window.addEventListener('naadam:bracket', renderMatchup);
+window.addEventListener('naadam:bracket', e => { fields.wrestling?.update(e.detail); renderMatchup(); });
 window.addEventListener('naadam:bout', e => { const {winner, final, chance} = e.detail; celebrate(winner, {final, chance}); });
 document.addEventListener('click', e => {
   const f = e.target.closest('.bracket .fighter[data-fighter]');
   if (f) openProfile(+f.dataset.fighter);
 });
-// Clicking a wrestler inside the 3D field (scene3d.js dispatches 'scene-pick').
-document.addEventListener('scene-pick', e => {
-  if (e.detail?.kind !== 'wrestler') return;
-  const pair = currentPair(); openProfile(pair[e.detail.side] ?? pair[0]);
-});
 
 /* ---------------- Racing: live ticker + finish podium ---------------- */
-function raceWrap() { return $('#race-canvas')?.closest('.canvas-wrap'); }
+function raceWrap() { return $('#race-field')?.closest('.canvas-wrap'); }
 window.addEventListener('naadam:race', e => {
   racePaused = e.detail.paused; updateHooves();
+  fields.race?.update(e.detail);
   const wrap = raceWrap(); if (!wrap) return;
   let tick = $('.lv-ticker', wrap);
   if (!tick) { tick = el('<div class="lv-ticker" aria-live="off"></div>'); wrap.append(tick); }
@@ -545,22 +602,190 @@ function toast(text) {
   n.textContent = text; n.classList.add('on');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => n.classList.remove('on'), 1800);
 }
+window.addEventListener('naadam:archery', e => fields.archery?.update(e.detail));
 window.addEventListener('naadam:shot', e => {
   sound.whoosh();
-  setTimeout(() => sound.thud(), 420);
-  const s = e.detail.score;
+  setTimeout(() => sound.thud(), 700);
+  const {hit, name, en} = e.detail;
   setTimeout(() => {
-    toast(s >= 8 ? t(`УУХАЙ! ${s} оноо 🎯`, `UUKHAI! ${s} points 🎯`) : t(`${s} оноо`, `${s} points`));
-    if (s >= 8) sound.cheer(false);
-  }, 650);
+    toast(hit ? t(`УУХАЙ! ${name} онолоо 🎯`, `UUKHAI! ${en} hit 🎯`) : t(`${name} алдлаа`, `${en} missed`));
+    if (hit) sound.cheer(false);
+  }, 780);
 });
+window.addEventListener('naadam:archery-finish', e => {
+  const w = e.detail.winner;
+  setTimeout(() => { toast(t(`🏆 ${w.name} түрүүллээ — ${w.hits} онолт`, `🏆 ${w.en} wins — ${w.hits} hits`)); sound.cheer(true); }, 1000);
+});
+
+/* ---------------- Live page: simulated broadcast of the field ---------------- */
+// Everything here is driven by the same simulated data as the sport pages — not a real broadcast.
+const LIVE_TABS = [['wrestling', '🤼', 'Бөх', 'Wrestling'], ['racing', '🐎', 'Морь', 'Racing'], ['archery', '🏹', 'Сур', 'Archery']];
+const ROUND = step => step < 4 ? t('I даваа', 'Round 1') : step < 6 ? t('Хагас шигшээ', 'Semi-final') : t('Шигшээ', 'Final');
+const liveLog = [];
+let liveTab = 'wrestling', liveFocus = null, liveField = null, liveBusy = false, viewers = 12400;
+const liveStart = Date.now();
+
+function watchLive(i) {
+  liveFocus = i; liveTab = 'wrestling';
+  if (location.hash === '#live') setLiveTab('wrestling'); else location.hash = 'live';
+}
+function buildLive() {
+  const root = $('#live-root'); if (!root) return;
+  root.innerHTML = `<div class="lv-live">
+    <div class="lv-live-main">
+      <div class="lv-live-tabs" role="tablist">${LIVE_TABS.map(([id, ic, mn, en]) => `<button type="button" role="tab" data-tab="${id}">${ic} ${t(mn, en)}</button>`).join('')}</div>
+      <div class="lv-screen">
+        <div class="lv-screen-field" id="lv-live-field"></div>
+        <div class="lv-screen-top">
+          <span class="lv-live-badge"><i></i>LIVE</span><span class="lv-live-time" id="lv-live-time">00:00</span>
+          <span class="lv-live-viewers">👁 <b id="lv-live-viewers">—</b></span>
+          <span class="lv-live-sim">${t('СИМУЛЯЦ', 'SIMULATION')}</span>
+        </div>
+        <div class="lv-lower" id="lv-lower"></div>
+      </div>
+      <div class="lv-live-controls" id="lv-live-controls"></div>
+    </div>
+    <aside class="lv-live-side">
+      <div class="lv-panel lv-score" id="lv-score"></div>
+      <div class="lv-panel lv-log"><span class="lv-kicker">${t('ҮЙЛ ЯВДЛЫН ТҮҮХ', 'PLAY-BY-PLAY')}</span><ol id="lv-log"></ol></div>
+    </aside>
+  </div>
+  <div class="lv-live-bottom">
+    <div class="lv-panel"><div class="lv-head" style="margin-bottom:16px"><div><span class="lv-kicker">${t('LIVE ЧАТ', 'LIVE CHAT')}</span></div></div><div data-comments="live"></div></div>
+    <div class="lv-panel lv-official">
+      <span class="lv-kicker">${t('АЛБАН ЁСНЫ ДАМЖУУЛАЛТ', 'OFFICIAL BROADCAST')}</span>
+      <h3>${t('Жинхэнэ наадмыг шууд үзэх', 'Watch the real Naadam live')}</h3>
+      <p>${t('Энэ хуудасны Live нь сургалтын симуляц. Улсын баяр наадмын албан ёсны шууд дамжуулалтыг үндэсний телевизийн сайтаас шалгаарай.', 'The live view on this page is a learning simulation. Check the national broadcaster for the official Naadam stream.')}</p>
+      <a class="lv-btn red" href="https://www.mnb.mn" target="_blank" rel="noopener">MNB · mnb.mn ↗</a>
+    </div>
+  </div>`;
+  $$('[data-tab]', root).forEach(b => b.addEventListener('click', () => setLiveTab(b.dataset.tab)));
+  mountComments($('[data-comments="live"]', root), 'live');
+  setLiveTab(liveTab);
+  renderLog();
+}
+function setLiveTab(tab) {
+  liveTab = tab;
+  $$('#live-root [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  const host = $('#lv-live-field'); if (!host) return;
+  if (tab === 'wrestling') liveField = new WrestlingField(host, wrestlerOpts(openProfile));
+  if (tab === 'racing') liveField = new RaceField(host, {onPick: pickRacer});
+  if (tab === 'archery') liveField = new ArcheryField(host);
+  refreshLive();
+  renderLiveControls();
+}
+function refreshLive() {
+  if (!liveField || !$('#lv-live-field')) return;
+  if (liveTab === 'wrestling') liveField.update(last('bracket'), {focus: liveFocus});
+  if (liveTab === 'racing' && last('race')) liveField.update(last('race'));
+  if (liveTab === 'archery') liveField.update(last('archery'));
+  renderLiveScore();
+}
+const clickApp = id => document.getElementById(id)?.click();
+function renderLiveControls() {
+  const box = $('#lv-live-controls'); if (!box) return;
+  if (liveTab === 'wrestling') {
+    const done = !last('bracket')?.next;
+    box.innerHTML = `<button type="button" class="lv-btn red" data-act="bout" ${done || liveBusy ? 'disabled' : ''}>▶ ${liveBusy ? t('Барилдаж байна…', 'Wrestling…') : t('Барилдааныг эхлүүлэх', 'Start the bout')}</button>
+      <button type="button" class="lv-btn ghost" data-act="reset">↻ ${t('Шинээр эхлэх', 'Restart')}</button>`;
+  } else if (liveTab === 'racing') {
+    box.innerHTML = `<button type="button" class="lv-btn red" data-act="pause">${racePaused ? '▶ ' + t('Үргэлжлүүлэх', 'Resume') : 'Ⅱ ' + t('Зогсоох', 'Pause')}</button>
+      <span class="lv-hint">${t('Морины цэг дээр дарж дагах', 'Tap a horse to follow it')}</span>`;
+  } else {
+    const a = last('archery'), done = !!a?.done;
+    box.innerHTML = `<button type="button" class="lv-btn red" data-act="shoot" ${done ? 'disabled' : ''}>🏹 ${t('Сум тавих', 'Shoot')}</button>
+      <button type="button" class="lv-btn ghost" data-act="round" ${done ? 'disabled' : ''}>⟳ ${t('Үе харвах', 'Shoot round')}</button>
+      <button type="button" class="lv-btn ghost" data-act="gender">${a?.gender === 'female' ? t('Эрэгтэй рүү', 'Men') : t('Эмэгтэй рүү', 'Women')}</button>
+      <button type="button" class="lv-btn ghost" data-act="reshoot">↻ ${t('Шинээр', 'Restart')}</button>`;
+  }
+  $$('[data-act]', box).forEach(b => b.addEventListener('click', () => liveAction(b.dataset.act)));
+}
+async function liveAction(act) {
+  if (act === 'bout' && !liveBusy && liveField?.grapple) {
+    liveBusy = true; renderLiveControls(); sound.cheer(false);
+    await liveField.grapple();
+    liveBusy = false; clickApp('next-match'); renderLiveControls();
+  }
+  if (act === 'reset') { clickApp('reset-bracket'); logEvent('↻', 'Барилдаан шинээр эхэллээ', 'Bracket restarted'); }
+  if (act === 'pause') { clickApp('race-pause'); renderLiveControls(); }
+  if (act === 'shoot') clickApp('shoot-arrow');
+  if (act === 'round') clickApp('shoot-round');
+  if (act === 'gender') document.querySelector(`.arch-gender button[data-gender="${last('archery')?.gender === 'female' ? 'male' : 'female'}"]`)?.click();
+  if (act === 'reshoot') clickApp('reset-shots');
+}
+function renderLiveScore() {
+  const box = $('#lv-score'), lower = $('#lv-lower'); if (!box) return;
+  if (liveTab === 'wrestling') {
+    const br = last('bracket'), st = fighterStates(br);
+    const focus = liveFocus != null ? `<p class="lv-focus">⭐ ${t('Таны дагаж буй', 'Following')}: <b>${esc(legendName(LEGENDS[liveFocus]))}</b>${st.out.has(liveFocus) ? ` · ${t('хасагдсан', 'eliminated')}` : ''}</p>` : '';
+    if (!st.next) {
+      const c = st.champion;
+      box.innerHTML = `<span class="lv-kicker">${t('ТЭМЦЭЭН ДУУСЛАА', 'FINISHED')}</span><button type="button" class="lv-side" data-profile="${c}">${avatar(c)}<span><b>${esc(legendName(LEGENDS[c]))}</b><small>🏆 ${t('Аварга', 'Champion')}</small></span></button>${focus}`;
+      lower.innerHTML = `<b>🏆 ${esc(legendName(LEGENDS[c]))}</b><span>${t('түрүүллээ', 'is the champion')}</span>`;
+    } else {
+      const [a, b] = st.next, p = winChance(LEGENDS[a], LEGENDS[b]);
+      box.innerHTML = `<span class="lv-kicker">${ROUND(st.step)} · ${st.step + 1} / 7</span>
+        <div class="lv-score-pair">
+          <button type="button" class="lv-side" data-profile="${a}">${avatar(a)}<span><b>${esc(legendName(LEGENDS[a]))}</b><small>${LEGENDS[a].wins} ${t('түрүү', 'titles')}</small></span></button>
+          <button type="button" class="lv-side" data-profile="${b}">${avatar(b)}<span><b>${esc(legendName(LEGENDS[b]))}</b><small>${LEGENDS[b].wins} ${t('түрүү', 'titles')}</small></span></button>
+        </div>
+        <div class="lv-prob"><div class="lv-prob-bar"><i style="width:${p * 100}%"></i><i style="width:${(1 - p) * 100}%"></i></div>
+          <div class="lv-prob-nums"><span>${Math.round(p * 100)}%</span><span>${Math.round((1 - p) * 100)}%</span></div></div>
+        <p class="lv-prob-note">※ ${t('Давах магадлал — симуляц', 'Win chance — simulation')}</p>${focus}`;
+      lower.innerHTML = `<b>${esc(legendName(LEGENDS[a]))}</b><span>VS</span><b>${esc(legendName(LEGENDS[b]))}</b><small>${ROUND(st.step)}</small>`;
+    }
+  } else if (liveTab === 'racing') {
+    const r = last('race'); if (!r) { box.innerHTML = ''; lower.innerHTML = ''; return; }
+    box.innerHTML = `<span class="lv-kicker">${t('ТЭРГҮҮЛЭГЧИД', 'LEADERS')} · 18 ${t('км', 'km')}</span><ol class="lv-race-list">${r.sorted.map((h, i) => `<li class="${h.id === r.selected ? 'on' : ''}" data-racer="${h.id}"><span class="lv-rank">${i + 1}</span><i style="background:${h.color}"></i><span><b>${esc(h.name)}</b><small>${esc(h.rider)}</small></span><em>${Math.min(100, h.progress).toFixed(0)}%</em></li>`).join('')}</ol>`;
+    $$('[data-racer]', box).forEach(li => li.addEventListener('click', () => pickRacer(+li.dataset.racer)));
+    const lead = r.sorted[0];
+    lower.innerHTML = `<b>1. ${esc(lead.name)}</b><span>${esc(lead.rider)}</span><small>${Math.round(Math.min(100, lead.progress) * 180).toLocaleString('en-US')} / 18,000 ${t('м', 'm')}</small>`;
+  } else {
+    const a = last('archery'); if (!a) { box.innerHTML = ''; lower.innerHTML = ''; return; }
+    const nm = p => esc(t(p.name, p.en)), total = a.rounds * a.arrowsPerRound, lastShot = a.shots.at(-1);
+    box.innerHTML = `<span class="lv-kicker">${a.gender === 'male' ? t('ЭРЭГТЭЙ', 'MEN') : t('ЭМЭГТЭЙ', 'WOMEN')} · ${a.distance} ${t('м', 'm')} · ${a.done ? t('ДУУСЛАА', 'FINISHED') : `${t('ҮЕ', 'ROUND')} ${a.round + 1}/${a.rounds}`}</span>
+      <ol class="lv-race-list lv-arch-list">${a.ranking.map((p, i) => `<li class="${a.current?.i === p.i ? 'on' : ''}"><span class="lv-rank">${i + 1}</span><i style="background:${a.current?.i === p.i ? '#e0524a' : '#e8b86a'}"></i><span><b>${nm(p)}</b><small>${esc(t(p.aimag, p.aimagEn))} · ${esc(t(p.rank, p.rankEn))}</small></span><em>${p.hits}<small>/${p.arrows || 0}</small></em></li>`).join('')}</ol>
+      <p class="lv-prob-note">※ ${t(`Зохиомол харваачид, онолт симуляци · нэг хүнд ${total} сум`, `Fictional archers, simulated hits · ${total} arrows each`)}</p>`;
+    lower.innerHTML = a.done ? `<b>🏆 ${nm(a.winner)}</b><span>${a.winner.hits} ${t('онолт', 'hits')}</span>`
+      : lastShot ? `<b>${nm(a.archers[lastShot.archer])}</b><span>${lastShot.hit ? t('ОНОЛОО — УУХАЙ!', 'HIT — UUKHAI!') : t('алдлаа', 'missed')}</span><small>${t('Дараагийнх', 'Next')}: ${nm(a.current)}</small>`
+      : `<b>${nm(a.current)}</b><span>${t('харвахаар бэлдэж байна…', 'is getting ready…')}</span>`;
+  }
+  $$('[data-profile]', box).forEach(x => x.addEventListener('click', () => openProfile(+x.dataset.profile)));
+}
+function logEvent(icon, mn, en) {
+  liveLog.unshift({at: new Date(), icon, mn, en});
+  liveLog.length = Math.min(liveLog.length, 30);
+  renderLog();
+}
+function renderLog() {
+  const ol = $('#lv-log'); if (!ol) return;
+  ol.innerHTML = liveLog.length ? liveLog.map(e => `<li><time>${e.at.toLocaleTimeString('en-GB', {hour12: false})}</time><span>${e.icon} ${esc(t(e.mn, e.en))}</span></li>`).join('')
+    : `<li class="lv-empty">${t('Барилдаан, уралдаан эхлэхийг хүлээж байна…', 'Waiting for the action…')}</li>`;
+}
+window.addEventListener('naadam:bout', e => {
+  const {winner, loser, chance, final} = e.detail, w = LEGENDS[winner], l = LEGENDS[loser], pct = Math.round(chance * 100);
+  logEvent(final ? '🏆' : '🤼', `${w.name} давлаа, ${l.name} унав (${pct}%)${final ? ' — түрүүллээ!' : ''}`, `${w.en} beat ${l.en} (${pct}%)${final ? ' — champion!' : ''}`);
+});
+window.addEventListener('naadam:race-finish', e => { const f = e.detail.podium[0]; if (f) logEvent('🏁', `${f.name} (${f.rider}) барианд түрүүлж ирлээ`, `${f.name} (${f.rider}) won the race`); });
+window.addEventListener('naadam:shot', e => { const d = e.detail; logEvent(d.hit ? '🎯' : '🏹', `${d.name}: ${d.hit ? 'онолоо, уухай!' : 'алдлаа'} (${d.hits} онолт)`, `${d.en}: ${d.hit ? 'hit, uukhai!' : 'missed'} (${d.hits} hits)`); });
+window.addEventListener('naadam:archery-finish', e => { const w = e.detail.winner; logEvent('🏆', `Сур харваа: ${w.name} ${w.hits} онолтоор түрүүллээ`, `Archery: ${w.en} won with ${w.hits} hits`); });
+for (const name of ['bracket', 'race', 'archery']) window.addEventListener('naadam:' + name, () => { if (window.naadamApp?.page === 'live') { refreshLive(); if (name !== 'race') renderLiveControls(); } });
+window.addEventListener('naadam:page', e => { if (e.detail.page === 'live') setLiveTab(liveTab); });
+setInterval(() => {
+  const s = Math.floor((Date.now() - liveStart) / 1000), tm = $('#lv-live-time'), vw = $('#lv-live-viewers');
+  if (tm) tm.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  viewers = Math.max(8000, viewers + Math.round((Math.random() - .45) * 120));
+  if (vw) vw.textContent = (viewers / 1000).toFixed(1) + 'k';
+}, 1000);
 
 /* ---------------- Boot + language/theme refresh ---------------- */
 function buildAll() {
+  setFieldLabels({tribune: t('ШҮҮГЧИЙН ТАВЦАН', 'JUDGES'), start: t('ГАРАА', 'START'), finish: t('БАРИА', 'FINISH'), km: t('км', 'km'), uukhai: t('Уухай!', 'Uukhai!'), wind: t('САЛХИ', 'WIND'), m: t('м', 'm'), ms: t('м/с', 'm/s'), men: t('ЭРЭГТЭЙ', 'MEN'), women: t('ЭМЭГТЭЙ', 'WOMEN'), round: t('ҮЕ', 'ROUND'), finished: t('ДУУСЛАА', 'FINISHED'), lang: t('mn', 'en')});
   buildHero();
   decorateSportCards();
   buildHomeSections();
   buildSportPages();
+  buildLive();
 }
 buildAll();
 loadComments();

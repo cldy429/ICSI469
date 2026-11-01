@@ -179,7 +179,7 @@ html[data-lang="ko"] body { font-family: var(--sans), 'Apple SD Gothic Neo', 'Ma
 /* ---------- Light mode ----------
    Харанхуй горим нь styles.css-ийн үндсэн загвар. Гэрэлтэй горимд цаасан цөцгий
    өнгөн дэвсгэр, хар хөх текст, илүү бараан алтан өнгө ашиглана.
-   3D талбай, спортын картууд өөрсдийн өнгөтэй үлдэнэ. */
+   Наадмын талбай, спортын картууд өөрсдийн өнгөтэй үлдэнэ. */
 html[data-theme="light"] {
   color-scheme: light;
   --navy: #f6efe3;
@@ -247,7 +247,7 @@ html[data-theme="light"] .shot-item.empty { color: #a0a8ab; }
 html[data-theme="light"] .site-footer { background: #ebe0cc; color: #5b6b73; }
 html[data-theme="light"] .footer-mark span { color: #5b6b73; }
 
-/* 3D талбай болон спортын картууд харанхуй хэвээр — дотор нь цайвар текст байдаг. */
+/* Наадмын талбай болон спортын картууд харанхуй хэвээр — дотор нь цайвар текст байдаг. */
 html[data-theme="light"] .canvas-wrap { --goldLight: #f4dba4; --gold: #d7b16d; }
 html[data-theme="light"] .sport-card { --goldLight: #f4dba4; --gold: #d7b16d; }
 

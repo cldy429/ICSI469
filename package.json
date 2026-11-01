@@ -1,0 +1,9 @@
+{
+  "name": "naadam",
+  "private": true,
+  "type": "module",
+  "description": "NAADAM — Монгол эрийн гурван наадмын вэб апп",
+  "scripts": {
+    "start": "node server/server.mjs"
+  }
+}

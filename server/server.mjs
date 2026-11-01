@@ -4,7 +4,9 @@ import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-const root=path.dirname(fileURLToPath(import.meta.url));
+// server/ хавтсанд байрлана; сайтын файлууд (index.html, css/, js/) нэг түвшин дээр.
+const serverDir=path.dirname(fileURLToPath(import.meta.url));
+const root=path.resolve(serverDir,'..');
 const port=Number(process.env.PORT||4173);
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.json':'application/json; charset=utf-8'};
 const racerNames=['Хээр','Зээрд','Хул','Халиун','Хар','Бор'];
@@ -16,13 +18,13 @@ function eventPacket(){tick++;
   const payload=JSON.stringify({type:'race',demo:true,simulation:true,generatedAt:new Date().toISOString(),horses:racers});
   for(const client of clients){try{client.write(`data: ${payload}\n\n`)}catch{clients.delete(client)}}}
 setInterval(eventPacket,1200);
-// Viewer comments + subscription sign-ups (demo). Stored as JSON in ./data, which is never served as a static file.
-const dataDir=path.join(root,'data');
+// Viewer comments + subscription sign-ups (demo). Stored as JSON in server/data, which is never served as a static file.
+const dataDir=path.join(serverDir,'data');
 async function loadJson(name,fallback){try{return JSON.parse(await readFile(path.join(dataDir,name),'utf8'))}catch{return fallback}}
 async function saveJson(name,value){await mkdir(dataDir,{recursive:true});await writeFile(path.join(dataDir,name),JSON.stringify(value,null,1))}
 let comments=await loadJson('comments.json',[]);
 const lastPost=new Map();
-const topics=new Set(['home','wrestling','racing','archery']);
+const topics=new Set(['home','wrestling','racing','archery','live']);
 const clean=(v,max)=>String(v??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
 function readBody(req){return new Promise((resolve,reject)=>{let body='';req.on('data',c=>{body+=c;if(body.length>8000){reject(new Error('too large'));req.destroy()}});req.on('end',()=>{try{resolve(JSON.parse(body||'{}'))}catch(e){reject(e)}})})}
 function sendJson(res,code,value){res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value))}
@@ -55,7 +57,9 @@ const server=http.createServer(async(req,res)=>{
  const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);
  let name=url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname);
  const full=path.resolve(root,`.${name}`);
- if(!(full===root||full.startsWith(root+path.sep))||full.startsWith(dataDir+path.sep)){res.writeHead(403);res.end('Forbidden');return}
+ // Only the site itself is public: no server code, saved data or dotfiles (.git, .gitignore).
+ const rel=path.relative(root,full);
+ if(!(full===root||full.startsWith(root+path.sep))||full.startsWith(serverDir+path.sep)||rel.split(path.sep).some(part=>part.startsWith('.'))){res.writeHead(403);res.end('Forbidden');return}
  try{const file=await readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-store'});res.end(file)}catch{res.writeHead(404);res.end('Not found')}
 });
-server.listen(port,()=>console.log(`NAADAM 3D demo: http://localhost:${port}\nReal SSE transport + simulated race data. Not official results.`));
+server.listen(port,()=>console.log(`NAADAM demo: http://localhost:${port}\nReal SSE transport + simulated race data. Not official results.`));
