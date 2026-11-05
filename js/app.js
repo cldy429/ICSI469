@@ -96,3 +96,5 @@ new MutationObserver(renderArchery).observe(document.documentElement,{attributes
 renderBracket();renderArchery();onHash();
 // Hooks for live.js (field dots, Live page controls).
 window.naadamApp={selectRacer,shootRound,get page(){return currentPage}};
+// Sticky header: доош гүйлгэсэн үед "scrolled" класс нэмж header-ийг нарийсгана.
+{const bar=$('.topbar');const onScroll=()=>bar.classList.toggle('scrolled',window.scrollY>24);window.addEventListener('scroll',onScroll,{passive:true});onScroll()}

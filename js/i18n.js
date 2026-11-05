@@ -4,11 +4,11 @@
 // app.js шинээр бичсэн текстийг MutationObserver барьж орчуулна.
 
 const LANGS = [
-  { code: 'mn', label: 'Монгол', short: 'MN' },
-  { code: 'en', label: 'English', short: 'EN' },
-  { code: 'ru', label: 'Русский', short: 'RU' },
-  { code: 'ja', label: '日本語', short: 'JA' },
-  { code: 'ko', label: '한국어', short: 'KO' },
+  { code: 'mn', label: 'Монгол', short: 'MN', sub: 'Mongolian' },
+  { code: 'en', label: 'English', short: 'EN', sub: 'English' },
+  { code: 'ru', label: 'Русский', short: 'RU', sub: 'Russian' },
+  { code: 'ja', label: '日本語', short: 'JA', sub: 'Japanese' },
+  { code: 'ko', label: '한국어', short: 'KO', sub: 'Korean' },
 ];
 const COL = { en: 0, ru: 1, ja: 2, ko: 3 };
 const STORE_KEY = 'naadam-lang';
@@ -237,8 +237,13 @@ function applyAll() {
   document.documentElement.dataset.lang = lang;
   document.title = translate(titleSrc);
   walk(document.body);
-  const sel = document.getElementById('lang-select');
-  if (sel) sel.value = lang;
+  const sw = document.getElementById('lang-switch');
+  if (sw) {
+    const cur = LANGS.find(l => l.code === lang);
+    sw.querySelector('.ls-code').textContent = cur.short;
+    sw.querySelector('.ls-name').textContent = cur.label;
+    sw.querySelectorAll('[role="option"]').forEach(o => o.setAttribute('aria-selected', String(o.dataset.code === lang)));
+  }
 }
 
 export function setLang(code) {
@@ -248,18 +253,49 @@ export function setLang(code) {
   applyAll();
 }
 
-// Толгой хэсэгт хэл сонгогч нэмнэ.
+// Толгой хэсэгт хэл сонгогч нэмнэ: бөмбөрцөг дүрстэй товч, дарахад хөдөлгөөнтэй жагсаалт нээгдэнэ.
+// Гараар: ↑/↓ сонголт, Enter сонгох, Esc хаах.
 function mountSwitcher() {
   const actions = document.querySelector('.top-actions');
-  if (!actions || document.getElementById('lang-select')) return;
-  const sel = document.createElement('select');
-  sel.id = 'lang-select';
-  sel.className = 'lang-select';
-  sel.setAttribute('aria-label', 'Хэл сонгох');
-  sel.title = 'Хэл сонгох';
-  sel.innerHTML = LANGS.map(l => `<option value="${l.code}">${l.short} · ${l.label}</option>`).join('');
-  sel.addEventListener('change', () => setLang(sel.value));
-  actions.prepend(sel);
+  if (!actions || document.getElementById('lang-switch')) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'lang-switch';
+  wrap.className = 'lang-switch';
+  wrap.setAttribute('data-i18n-skip', '');
+  wrap.innerHTML = `<button type="button" class="ls-button" aria-haspopup="listbox" aria-expanded="false" aria-label="Хэл сонгох / Language">
+      <svg class="ls-globe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 3.9 5.8 3.9 9s-1.3 6.2-3.9 9c-2.6-2.8-3.9-5.8-3.9-9S9.4 5.8 12 3z"/></svg>
+      <span class="ls-code"></span><span class="ls-name"></span>
+      <svg class="ls-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5"/></svg>
+    </button>
+    <ul class="ls-menu" role="listbox" tabindex="-1" aria-label="Хэл / Language">
+      ${LANGS.map((l, i) => `<li role="option" data-code="${l.code}" style="--i:${i}" tabindex="-1"><span class="ls-badge">${l.short}</span><span class="ls-text"><b>${l.label}</b><small>${l.sub}</small></span><svg class="ls-check" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg></li>`).join('')}
+    </ul>`;
+  const btn = wrap.querySelector('.ls-button'), opts = [...wrap.querySelectorAll('[role="option"]')];
+  const open = () => {
+    wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
+    (opts.find(o => o.dataset.code === lang) || opts[0]).focus({ preventScroll: true });
+  };
+  const close = focus => {
+    if (!wrap.classList.contains('open')) return;
+    wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false');
+    if (focus) btn.focus();
+  };
+  const pick = code => {
+    if (code !== lang) { setLang(code); wrap.classList.remove('flash'); void wrap.offsetWidth; wrap.classList.add('flash'); }
+    close(true);
+  };
+  btn.addEventListener('click', () => wrap.classList.contains('open') ? close() : open());
+  btn.addEventListener('keydown', e => { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(); } });
+  opts.forEach(o => o.addEventListener('click', () => pick(o.dataset.code)));
+  wrap.querySelector('.ls-menu').addEventListener('keydown', e => {
+    const i = opts.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length].focus(); }
+    else if (e.key === 'Home' || e.key === 'End') { e.preventDefault(); opts[e.key === 'Home' ? 0 : opts.length - 1].focus(); }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (i >= 0) pick(opts[i].dataset.code); }
+    else if (e.key === 'Escape' || e.key === 'Tab') close(e.key === 'Escape');
+  });
+  document.addEventListener('click', e => { if (!wrap.contains(e.target)) close(); });
+  actions.prepend(wrap);
 }
 
 mountSwitcher();
