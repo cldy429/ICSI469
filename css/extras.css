@@ -166,7 +166,30 @@ html.splash-lock, html.splash-lock body { overflow: hidden; }
 }
 .lang-select option { background: #0a273c; color: #fff5e5; }
 .lang-select:focus-visible { outline: 2px solid var(--goldLight); outline-offset: 3px; }
-.theme-toggle { font-size: 16px; line-height: 1; }
+.theme-toggle { display: grid; place-items: center; padding: 0; line-height: 1; cursor: pointer; overflow: hidden; transition: background-color .4s, border-color .4s, transform .2s; }
+.theme-toggle:hover { background: rgba(215, 177, 109, .14); transform: scale(1.06); }
+.theme-toggle:active { transform: scale(.92); }
+.theme-toggle:focus-visible { outline: 2px solid var(--goldLight); outline-offset: 3px; }
+/* Нар ↔ сар дүрсний хувирал */
+.tt-icon { width: 18px; height: 18px; overflow: visible; transition: transform .6s cubic-bezier(.4, 0, .2, 1); }
+.tt-core { transform-box: view-box; transform-origin: 12px 12px; transition: transform .6s cubic-bezier(.4, 0, .2, 1); }
+.tt-cut { transition: transform .6s cubic-bezier(.4, 0, .2, 1); transform: translate(10px, -10px); }
+.tt-rays { transform-box: view-box; transform-origin: 12px 12px; transition: transform .6s cubic-bezier(.4, 0, .2, 1), opacity .4s; }
+html[data-theme="light"] .tt-icon { transform: rotate(-20deg); }
+html[data-theme="light"] .tt-core { transform: scale(1.7); }
+html[data-theme="light"] .tt-cut { transform: none; }
+html[data-theme="light"] .tt-rays { transform: rotate(90deg) scale(.4); opacity: 0; }
+.theme-toggle.spin .tt-icon { animation: tt-pop .6s cubic-bezier(.4, 0, .2, 1); }
+@keyframes tt-pop { 40% { scale: .75; } 100% { scale: 1; } }
+/* Шилжилт: View Transition (тойрог тэлэх) эсвэл өнгө зөөлөн солигдох */
+::view-transition-old(root), ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *::after {
+  transition: background-color .6s ease, color .6s ease, border-color .6s ease, fill .6s ease, stroke .6s ease, box-shadow .6s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tt-icon, .tt-core, .tt-cut, .tt-rays { transition: none; }
+  .theme-toggle.spin .tt-icon { animation: none; }
+}
 @media (max-width: 720px) {
   .top-actions { gap: 10px; }
   .lang-select { max-width: 64px; padding: 0 6px; }
