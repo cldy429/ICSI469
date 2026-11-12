@@ -4,6 +4,8 @@ import http from 'node:http';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
+import {LEGENDS} from '../js/data.js';
+import {DEFAULT_WRESTLING_PAIR, WRESTLING_DURATION, wrestlingLineup, wrestlingPacket} from '../js/wrestling-demo.js';
 // server/ хавтсанд байрлана; сайтын файлууд (index.html, css/, js/) нэг түвшин дээр.
 const serverDir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(serverDir,'..');
@@ -18,6 +20,43 @@ function eventPacket(){tick++;
   const payload=JSON.stringify({type:'race',demo:true,simulation:true,generatedAt:new Date().toISOString(),horses:racers});
   for(const client of clients){try{client.write(`data: ${payload}\n\n`)}catch{clients.delete(client)}}}
 setInterval(eventPacket,1200);
+
+const streamHeaders = {
+  'Content-Type': 'text/event-stream; charset=utf-8',
+  'Cache-Control': 'no-cache, no-transform',
+  'Connection': 'keep-alive',
+  'Access-Control-Allow-Origin': '*',
+  'X-Accel-Buffering': 'no',
+};
+
+function streamWrestling(req, res) {
+  const {searchParams} = new URL(req.url, 'http://localhost');
+  const sides = ['red', 'blue'];
+  const pair = sides.some(side => searchParams.has(side)) ? sides.map(side => {
+    const value = searchParams.get(side);
+    return LEGENDS.findIndex((_, index) => String(index) === value);
+  }) : DEFAULT_WRESTLING_PAIR;
+  if (pair.includes(-1) || pair[0] === pair[1]) {
+    sendJson(res, 400, {error: 'Choose two distinct wrestler IDs'});
+    return;
+  }
+
+  res.writeHead(200, streamHeaders);
+  let second = 0;
+  const lineup = wrestlingLineup(pair);
+  const sendFrame = () => res.write(`data: ${JSON.stringify(wrestlingPacket(lineup, second))}\n\n`);
+  sendFrame();
+  const timer = setInterval(() => {
+    second++;
+    sendFrame();
+    if (second === WRESTLING_DURATION) {
+      clearInterval(timer);
+      res.end();
+    }
+  }, 1000);
+  res.once('close', () => clearInterval(timer));
+}
+
 // Viewer comments + subscription sign-ups (demo). Stored as JSON in server/data, which is never served as a static file.
 const dataDir=path.join(serverDir,'data');
 async function loadJson(name,fallback){try{return JSON.parse(await readFile(path.join(dataDir,name),'utf8'))}catch{return fallback}}
@@ -50,9 +89,10 @@ async function api(req,res,pathname){
  return false}
 const server=http.createServer(async(req,res)=>{
  const pathname=(req.url||'/').split('?')[0];
+ if(pathname==='/api/wrestling/events'&&req.method==='GET'){streamWrestling(req,res);return}
  if(pathname.startsWith('/api/')&&pathname!=='/api/events'){try{if(await api(req,res,pathname))return}catch(e){console.warn(e);sendJson(res,500,{error:'server'});return}sendJson(res,404,{error:'not found'});return}
  if(req.url?.split('?')[0]==='/api/events'){
-  res.writeHead(200,{'Content-Type':'text/event-stream; charset=utf-8','Cache-Control':'no-cache, no-transform','Connection':'keep-alive','Access-Control-Allow-Origin':'*','X-Accel-Buffering':'no'});res.write(': NAADAM demo SSE\n\n');clients.add(res);req.on('close',()=>clients.delete(res));return;
+  res.writeHead(200,streamHeaders);res.write(': NAADAM demo SSE\n\n');clients.add(res);req.on('close',()=>clients.delete(res));return;
  }
  const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);
  let name=url.pathname==='/'?'/index.html':decodeURIComponent(url.pathname);
@@ -62,4 +102,4 @@ const server=http.createServer(async(req,res)=>{
  if(!(full===root||full.startsWith(root+path.sep))||full.startsWith(serverDir+path.sep)||rel.split(path.sep).some(part=>part.startsWith('.'))){res.writeHead(403);res.end('Forbidden');return}
  try{const file=await readFile(full);res.writeHead(200,{'Content-Type':types[path.extname(full)]||'application/octet-stream','Cache-Control':'no-store'});res.end(file)}catch{res.writeHead(404);res.end('Not found')}
 });
-server.listen(port,()=>console.log(`NAADAM demo: http://localhost:${port}\nReal SSE transport + simulated race data. Not official results.`));
+server.listen(port,()=>console.log(`NAADAM demo: http://localhost:${port}\nReal SSE transport + simulated race and wrestling data. Not official results.`));

@@ -218,6 +218,15 @@ html.theme-fade, html.theme-fade *, html.theme-fade *::before, html.theme-fade *
   .ls-name { display: none; }
   .ls-button { padding: 0 9px 0 8px; gap: 5px; }
 }
+@media (max-width: 530px) {
+  .topbar, .topbar .brand { gap: 8px; }
+  .topbar .brand-word { font-size: 15px; letter-spacing: .1em; }
+  .top-actions { gap: 6px; }
+}
+@media (max-width: 360px) {
+  .topbar .ls-globe, .topbar .ls-chev { display: none; }
+  .topbar .brand-word { font-size: 13px; }
+}
 
 /* Япон, Солонгос үсэгт тохирох фонт */
 html[data-lang="ja"] body { font-family: var(--sans), 'Hiragino Sans', 'Yu Gothic', 'Noto Sans JP', sans-serif; }

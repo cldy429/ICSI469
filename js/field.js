@@ -130,6 +130,329 @@ export class WrestlingField {
   }
 }
 
+/* ---------------- Live wrestling positions ---------------- */
+const STADIUM = {x: 480, y: 260};
+const TRAIL_SECONDS = 4;
+const FIGURE_SCALE = .8;
+
+const FAN_GESTURES = [
+  {name: 'clap', arm: 'M-6 4Q-11 8-6 8L-2.4 3.5', hand: [-2.4, 3.5], mouth: 1},
+  {name: 'shout', arm: 'M-6 5Q-13 1-9-6', hand: [-8.6, -7], mouth: 2.3},
+  {name: 'wave', arm: 'M-6 5Q-11 0-14-11', hand: [-14, -12], mouth: 1.5},
+];
+const FAN_SKIN = ['#efc299', '#ba855f', '#ffd3a9', '#a87155'];
+
+function stadiumSpectator(index, x, y, shirt) {
+  const {name, arm, hand: [hx, hy], mouth} = FAN_GESTURES[index % FAN_GESTURES.length];
+  const arms = [1, -1].map(side => `<g transform="scale(${side} 1)">
+    <g class="wt-fan-arm"><path d="${arm}"/><circle cx="${hx}" cy="${hy}" r="2.4"/></g>
+  </g>`).join('');
+  return `<g class="wt-spectator wt-fan-${name}" data-crowd-min="${2 + index % 4}"
+      transform="translate(${x.toFixed(1)} ${y.toFixed(1)})" style="--fan-shirt:${shirt};--fan-skin:${FAN_SKIN[index % FAN_SKIN.length]};--fan-delay:${(index % 7) * -.11}s">
+    <circle class="wt-fan-seat" r="2.3" fill="${shirt}"/>
+    <g class="wt-fan-upright">
+      <g class="wt-fan-figure"><g class="wt-fan-person">
+        <path class="wt-fan-shirt" d="M-8 11V5a8 6 0 0 1 16 0v6a2 2 0 0 1-2 2H-6a2 2 0 0 1-2-2Z"/>
+        <circle class="wt-fan-head" cy="-6" r="6"/>
+        <path class="wt-fan-hair" d="M-5.7-8a6 6 0 0 1 11.4 0c-2.4 1-4.6.2-5.8-1.6C-1-8-3-7.5-5.7-8Z"/>
+        <path class="wt-fan-eyes" d="M-2.2-6.3h.1m4.2 0h.1"/>
+        <ellipse class="wt-fan-mouth" cy="-3.1" rx="1.8" ry="${mouth}"/>
+        ${arms}
+      </g></g>
+    </g>
+  </g>`;
+}
+
+function stadiumField(id) {
+  const seatColors = ['#d7b07d', '#bd6c64', '#e0d4b4', '#749ea5', '#7f9290'];
+  const seatsPerRow = 184;
+  const fanSeats = new Map(Array.from({length: 24}, (_, i) => [Math.floor((i + .5) * seatsPerRow / 24), i]));
+  const spectators = [];
+  const seats = Array.from({length: 4}, (_, row) => {
+    const rx = 419 + row * 8, ry = 218 + row * 8;
+    const dots = Array.from({length: seatsPerRow}, (_, i) => {
+      if (i % 23 === 0) return '';
+      const angle = (i + row % 2 / 2) / seatsPerRow * Math.PI * 2;
+      const x = STADIUM.x + rx * Math.cos(angle), y = STADIUM.y + ry * Math.sin(angle);
+      const color = seatColors[(i + row * 3) % seatColors.length];
+      const fan = row === 1 ? fanSeats.get(i) : undefined;
+      if (fan !== undefined) {
+        spectators.push(stadiumSpectator(fan, x, y, color));
+        return '';
+      }
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i % 3 ? 1.8 : 2.3}" fill="${color}"/>`;
+    }).join('');
+    return `<ellipse cx="480" cy="260" rx="${rx}" ry="${ry}" fill="none" stroke="#788581" opacity=".3"/>${dots}`;
+  }).join('');
+
+  return `<defs>
+      <radialGradient id="${id}-grass" cx="46%" cy="35%" r="70%">
+        <stop stop-color="#77a465"/><stop offset=".62" stop-color="#4d8354"/><stop offset="1" stop-color="#2b5c44"/>
+      </radialGradient>
+      <pattern id="${id}-mow" width="72" height="20" patternUnits="userSpaceOnUse">
+        <rect width="36" height="20" fill="#143f35" opacity=".15"/>
+        <path d="M0 0h72M0 10h72" stroke="#d5e8ac" stroke-opacity=".09"/>
+      </pattern>
+    </defs>
+    <g class="wt-bowl" aria-hidden="true">
+      <ellipse cx="480" cy="267" rx="459" ry="247" fill="#071a1c" opacity=".85"/>
+      <ellipse cx="480" cy="260" rx="455" ry="247" fill="#243e37" stroke="#879075" stroke-width="2"/>
+      <ellipse cx="480" cy="260" rx="451" ry="244" fill="#334b4a"/>
+      ${seats}
+      <ellipse cx="480" cy="260" rx="410" ry="211" fill="#886b4c"/>
+      <ellipse cx="480" cy="260" rx="400" ry="201" fill="url(#${id}-grass)" stroke="#d3d8a6" stroke-width="2"/>
+      <ellipse cx="480" cy="260" rx="399" ry="200" fill="url(#${id}-mow)"/>
+      <g fill="none" stroke="#e4edc7" stroke-opacity=".55">
+        <ellipse cx="480" cy="260" rx="376" ry="177" stroke-dasharray="4 7"/>
+        <circle cx="480" cy="260" r="77"/>
+        <path d="M480 176v16m0 136v16m-84-84h16m136 0h16"/>
+      </g>
+      <path d="M480 233 507 260 480 287 453 260Z M480 247 493 260 480 273 467 260Z" fill="none" stroke="#f7e3ae" stroke-opacity=".44"/>
+      ${ger(145, 177, .58)}${ger(815, 177, .58)}${ger(145, 358, .58)}${ger(815, 358, .58)}
+      <path d="M406 76q74-22 148 0l-8 13q-66-17-132 0Z" fill="#2e3739" stroke="#d9bb80" stroke-opacity=".7"/>
+      ${Array.from({length: 9}, (_, i) => `<circle cx="${440 + i * 10}" cy="${82 + Math.abs(i - 4) * .5}" r="2.7" fill="#fff5df"/>`).join('')}
+      <g class="wt-crowd-effects" aria-hidden="true">${spectators.join('')}</g>
+    </g>`;
+}
+
+export class WrestlingTrackingField {
+  constructor(host, boutCount, onPick) {
+    const bouts = Array.from({length: boutCount}, (_, index) => {
+      const markers = [0, 1].map(side => `
+        <g class="wt-marker" data-side="${side}" role="button" tabindex="0" aria-expanded="false" aria-controls="wt-pair-panel">
+          <title></title>
+          <circle class="wt-hit" r="25"/>
+          <g class="wt-figure" aria-hidden="true">
+            <circle class="wt-token" r="18"/>
+            <g class="wt-athlete" transform="scale(.78)">
+              <path class="wt-boots" d="M-7 -5h-8m8 10h-8"/>
+              <path class="wt-vest" d="M-9 -7Q-3 -10 3 -7V7Q-3 10 -9 7Z"/>
+              <path class="wt-arms wt-ready" d="M0 -7q3-8 10-6M0 7q3 8 10 6"/>
+              <path class="wt-arms wt-grip" d="M0 -7q7-6 16-3M0 7q7 6 16 3"/>
+              <circle class="wt-head" cx="6" r="5"/>
+            </g>
+            <text class="wt-rank-symbol" x="14" y="-12"></text>
+          </g>
+          <text class="wt-name" lengthAdjust="spacingAndGlyphs" aria-hidden="true"></text>
+        </g>`).join('');
+      return `<g class="wt-bout" data-bout="${index}">
+        <g class="wt-trails" aria-hidden="true"><polyline/><polyline/></g>
+        <path class="wt-link" aria-hidden="true"/>
+        <g class="wt-bolt" aria-hidden="true"><path class="wt-bolt-halo"/><path class="wt-bolt-core"/><path class="wt-bolt-fork"/></g>
+        ${markers}
+      </g>`;
+    }).join('');
+    this.svg = svg('0 0 960 520', `${stadiumField('wt' + ++uid)}
+      <g class="wt-bouts" style="display:none">${bouts}</g>
+      <g class="wt-chant" aria-hidden="true" hidden>
+        <path/>
+        <text y="19" lengthAdjust="spacingAndGlyphs"></text>
+      </g>`, 'wrestling-tracking');
+    this.svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    this.bowl = this.svg.querySelector('.wt-bowl');
+    this.crowdCues = [...this.bowl.querySelectorAll('[data-crowd-min]')];
+    this.uprightFans = this.bowl.querySelectorAll('.wt-fan-upright');
+    this.shoutingFans = [...this.bowl.querySelectorAll('.wt-fan-shout')].map(fan => {
+      const {e: x, f: y} = fan.transform.baseVal.getItem(0).matrix;
+      return {x, y};
+    });
+    this.chant = this.svg.querySelector('.wt-chant');
+    this.chantOutline = this.chant.querySelector('path');
+    this.chantText = this.chant.querySelector('text');
+    this.boutLayer = this.svg.querySelector('.wt-bouts');
+    this.bouts = [...this.boutLayer.children].map(root => ({
+      root,
+      dots: root.querySelectorAll('.wt-marker'),
+      labels: root.querySelectorAll('.wt-name'),
+      athletes: root.querySelectorAll('.wt-athlete'),
+      trails: root.querySelectorAll('.wt-trails polyline'),
+      link: root.querySelector('.wt-link'),
+      bolt: root.querySelectorAll('.wt-bolt path'),
+    }));
+    this.history = [];
+    const pick = event => {
+      const marker = event.target.closest('.wt-marker');
+      if (!marker) return;
+      event.preventDefault();
+      onPick(Number(marker.closest('.wt-bout').dataset.bout), marker);
+    };
+    this.svg.addEventListener('click', pick);
+    this.svg.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') pick(event);
+    });
+    host.replaceChildren(this.svg);
+    const resize = ({width, height}) => {
+      if (!width || !height) return;
+      const portrait = width < height;
+      if (this.portrait !== portrait) {
+        this.portrait = portrait;
+        this.svg.classList.toggle('wt-portrait', portrait);
+        this.svg.setAttribute('viewBox', portrait ? '220 -220 520 960' : '0 0 960 520');
+        this.bowl.setAttribute('transform', portrait ? 'rotate(90 480 260)' : '');
+        this.uprightFans.forEach(fan => fan.setAttribute('transform', portrait ? 'rotate(-90)' : ''));
+        this.layoutChant();
+        if (this.positions) this.fitNames();
+      }
+      if (this.positions) this.draw(this.positions);
+    };
+    if ('ResizeObserver' in window) new ResizeObserver(([entry]) => resize(entry.contentRect)).observe(host);
+    else window.addEventListener('resize', () => resize(host.getBoundingClientRect()));
+  }
+
+  setCrowdLevel(level) {
+    this.crowdCues.forEach(cue => cue.classList.toggle('wt-cheering', level >= Number(cue.dataset.crowdMin)));
+  }
+
+  layoutChant() {
+    if (!this.chantFan) return;
+    const {x, y} = this.chantFan;
+    const [px, py] = this.portrait ? [STADIUM.x - (y - STADIUM.y), STADIUM.y + (x - STADIUM.x)] : [x, y];
+    const view = this.svg.viewBox.baseVal;
+    const center = Math.max(view.x + 111, Math.min(view.x + view.width - 111, px));
+    const below = py < STADIUM.y;
+    const top = below ? py + 23 : py - 59;
+    const tailX = px - center;
+    const base = Math.max(-87, Math.min(87, tailX));
+    const topTail = below ? `H${base - 7}L${tailX} -10 ${base + 7} 0` : '';
+    const bottomTail = below ? '' : `H${base + 7}L${tailX} 47 ${base - 7} 28`;
+    this.chantOutline.setAttribute('d', `M-96 0${topTail}H96a10 10 0 0 1 10 10v8a10 10 0 0 1-10 10${bottomTail}H-96a10 10 0 0 1-10-10v-8a10 10 0 0 1 10-10Z`);
+    this.chant.setAttribute('transform', `translate(${center} ${top})`);
+  }
+
+  setCrowdChant(message) {
+    clearTimeout(this.chantTimer);
+    this.chantFan = null;
+    this.chant.toggleAttribute('hidden', !message);
+    this.chantText.textContent = message;
+    this.chantText.removeAttribute('textLength');
+    if (!message) return;
+    if (this.chantText.getComputedTextLength() > 190) this.chantText.setAttribute('textLength', '190');
+
+    // Avoid seats whose bubbles would sit behind the bout panel on narrow screens.
+    const available = this.shoutingFans.filter(({x, y}) => x < 800 && (y < 400 || x < STADIUM.x));
+    const count = Math.random() < .5 ? 2 : 3;
+    const fans = Array.from({length: count}, () => available.splice(Math.floor(Math.random() * available.length), 1)[0]);
+    const next = () => {
+      this.chantFan = fans.shift();
+      this.layoutChant();
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        this.chant.animate?.([{opacity: .35}, {opacity: 1}], 160);
+      }
+      if (fans.length) this.chantTimer = setTimeout(next, 1800 / count);
+    };
+    next();
+  }
+
+  setWrestlers(bouts) {
+    this.bouts.forEach(({dots, labels, trails}, i) => dots.forEach((dot, side) => {
+      const {name, shortName, title, rank} = bouts[i][side];
+      const label = `${name} · ${title}`;
+      dot.setAttribute('aria-label', label);
+      dot.querySelector('title').textContent = label;
+      dot.style.setProperty('--wt-rank', rank.color);
+      dot.querySelector('.wt-figure').setAttribute('transform', `scale(${FIGURE_SCALE * rank.scale})`);
+      dot.querySelector('.wt-rank-symbol').textContent = rank.symbol;
+      trails[side].style.setProperty('--wt-rank', rank.color);
+      labels[side].textContent = shortName;
+    }));
+    this.fitNames();
+  }
+
+  fitNames() {
+    for (const {labels} of this.bouts) {
+      for (const label of labels) {
+        label.removeAttribute('textLength');
+        if (label.getComputedTextLength() > 120) label.setAttribute('textLength', '120');
+      }
+    }
+  }
+
+  layoutNames(bout, x) {
+    const direction = this.portrait ? Math.sign(x - STADIUM.x) : 0;
+    if (bout.labelDirection === direction) return;
+    bout.labelDirection = direction;
+    bout.labels.forEach((label, side) => {
+      label.setAttribute('x', direction * 20);
+      label.setAttribute('y', direction ? 3 : side === 0 ? -20 : 24);
+      label.setAttribute('text-anchor', direction === -1 ? 'end' : direction === 1 ? 'start' : 'middle');
+    });
+  }
+
+  select(index) {
+    this.bouts.forEach(({root, dots}, i) => {
+      root.classList.toggle('wt-selected', i === index);
+      dots.forEach(dot => dot.setAttribute('aria-expanded', String(i === index)));
+    });
+  }
+
+  project({x, y}) {
+    const dx = (x - 50) * 5.4, dy = (y - 50) * 2.7;
+    return this.portrait ? [STADIUM.x - dy, STADIUM.y + dx] : [STADIUM.x + dx, STADIUM.y + dy];
+  }
+
+  draw(positions) {
+    this.positions = positions;
+    const points = positions.map(point => this.project(point));
+    const history = this.history.map(frame => frame.map(point => this.project(point)));
+    this.bouts.forEach((bout, index) => {
+      const offset = index * 2;
+      const pair = points.slice(offset, offset + 2);
+      const [[x, y], [endX, endY]] = pair;
+      this.layoutNames(bout, (x + endX) / 2);
+      bout.link.setAttribute('d', `M${x} ${y}L${endX} ${endY}`);
+      const heading = Math.atan2(endY - y, endX - x) * 180 / Math.PI;
+      pair.forEach(([px, py], side) => {
+        move(bout.dots[side], px, py);
+        bout.athletes[side].setAttribute('transform', `rotate(${heading + 180 * side}) scale(.78)`);
+        const path = history.map(frame => frame[offset + side].join(','));
+        bout.trails[side].setAttribute('points', [...path, `${px},${py}`].join(' '));
+      });
+      if (bout.contact) this.drawBolt(bout.bolt, pair);
+    });
+  }
+
+  drawBolt(paths, points) {
+    const [[x, y], [endX, endY]] = points;
+    const dx = endX - x, dy = endY - y;
+    const length = Math.hypot(dx, dy) || 1;
+    const at = (along, offset) => `${x + along * dx - offset * dy / length} ${y + along * dy + offset * dx / length}`;
+    const corners = [[.30, 0], [.38, -9], [.47, 10], [.54, -8], [.63, 7], [.72, 0]];
+    const zigzag = corners.map(([along, offset]) => at(along, offset));
+    const path = `M${x} ${y}L${zigzag.join('L')}L${endX} ${endY}`;
+    paths[0].setAttribute('d', path);
+    paths[1].setAttribute('d', path);
+    paths[2].setAttribute('d', `M${at(.38, -9)}L${at(.50, -17)}L${at(.62, -14)}M${at(.47, 10)}L${at(.54, 17)}L${at(.66, 13)}`);
+  }
+
+  update(bouts, animate = false) {
+    cancelAnimationFrame(this.animation);
+    const positions = bouts.flatMap(bout => bout.wrestlers);
+    this.bouts.forEach((view, i) => {
+      view.contact = bouts[i].phase === 'grapple';
+      view.root.classList.toggle('wt-contact', view.contact);
+    });
+    if (this.boutLayer.style.display === 'none') {
+      this.boutLayer.style.display = '';
+      this.fitNames();
+    }
+    if (animate && this.target) this.history = [...this.history, this.target].slice(-TRAIL_SECONDS);
+    else this.history = [];
+    this.target = positions;
+    if (!animate || !this.positions || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.draw(positions);
+      return;
+    }
+
+    const from = this.positions, started = performance.now();
+    const step = now => {
+      const fraction = Math.min(1, (now - started) / 650);
+      this.draw(from.map(({x, y}, i) => ({x: x + (positions[i].x - x) * fraction, y: y + (positions[i].y - y) * fraction})));
+      if (fraction < 1) this.animation = requestAnimationFrame(step);
+    };
+    this.animation = requestAnimationFrame(step);
+  }
+}
+
 /* ---------------- Horse race route ---------------- */
 // A winding steppe route, sampled from cubic curves so dots can be placed by distance.
 const ROUTE = [[70, 340], [190, 200, 280, 430, 405, 310], [520, 200, 610, 220, 670, 270], [700, 295, 718, 285, 730, 268]];

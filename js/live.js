@@ -1,8 +1,9 @@
 // NAADAM live — бодит зураг, бөхийн профайл + давах магадлал, ялагчийн баяр,
 // дуу, барианы самбар, наадмын талбай дээрх цэгүүд, Live хуудас, үзэгчдийн сэтгэгдэл, subscription.
 // app.js-ийн 'naadam:*' үйл явдлуудыг сонсож ажиллана.
-import {PHOTOS, LEGENDS, NAADAM_2026, rating, winChance, SOURCES} from './data.js';
+import {PHOTOS, LEGENDS, DEMO_WRESTLERS, WRESTLING_RANKS, NAADAM_2026, rating, winChance, SOURCES} from './data.js';
 import {WrestlingField, RaceField, ArcheryField, fighterStates, setFieldLabels} from './field.js';
+import {WrestlingTracker} from './wrestling.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -71,7 +72,12 @@ function updateHooves() {
   if (run && !hoofTimer) hoofTimer = setInterval(() => { [0, .09, .17].forEach(w => sound.hoof(w)); }, 420);
   if (!run && hoofTimer) { clearInterval(hoofTimer); hoofTimer = null; }
 }
-$('#sound-toggle')?.addEventListener('click', () => setTimeout(updateHooves, 0));
+$('#sound-toggle')?.addEventListener('click', () => {
+  if (sound.on) {
+    try { sound.ac().resume().catch(() => {}); } catch {}
+  }
+  setTimeout(updateHooves, 0);
+});
 document.addEventListener('visibilitychange', updateHooves);
 window.addEventListener('hashchange', () => setTimeout(updateHooves, 50));
 
@@ -381,7 +387,7 @@ async function loadComments() {
 
 /* ---------------- Sport pages: photo banners + field views ---------------- */
 const PAGES = {
-  wrestling: {banner: PHOTOS.wrestling, mn: 'Талбай дээр барилдаж буй бөхчүүд — цэг дээр дарж мэдээллийг нь үз.', en: 'Wrestlers on the field — tap a dot to see their profile.'},
+  wrestling: {},
   racing: {banner: PHOTOS.racers, mn: 'Хүүхэд унаачид, хурдан хүлгүүд — тал нутгийн хийморь.', en: 'Young riders and swift horses of the steppe.'},
   archery: {banner: PHOTOS.archery, mn: 'Мэргэн харваачид — "Уухай!" дуудлагын дор.', en: 'Master archers — to the call of "Uukhai!".'},
 };
@@ -392,21 +398,15 @@ function buildSportPages() {
   for (const [page, cfg] of Object.entries(PAGES)) {
     const section = $('#page-' + page); if (!section) continue;
     $$('.lv-banner, .lv-page-comments, .lv-n26, .lv-arch-info', section).forEach(n => n.remove());
-    const banner = el(`<div class="lv-banner" style="background-image:url('${cfg.banner.src}')"><strong>${t(cfg.mn, cfg.en)}</strong>${credit(cfg.banner)}</div>`);
-    $('.page-heading', section)?.after(banner);
+    if (cfg.banner) {
+      const banner = el(`<div class="lv-banner" style="background-image:url('${cfg.banner.src}')"><strong>${t(cfg.mn, cfg.en)}</strong>${credit(cfg.banner)}</div>`);
+      $('.page-heading', section)?.after(banner);
+    }
     const comments = el(`<div class="lv-page-comments lv-panel"><div class="lv-head" style="margin-bottom:16px"><div><span class="lv-kicker">${t('ҮЗЭГЧДИЙН СЭТГЭГДЭЛ', 'FAN COMMENTS')}</span></div></div><div data-comments="${page}"></div></div>`);
     if (page === 'wrestling') section.append(naadam2026());
     if (page === 'archery') section.append(archeryGuide());
     section.append(comments);
     mountComments($('[data-comments]', comments), page);
-  }
-  const wf = $('#wrestling-field');
-  if (wf) {
-    fields.wrestling = new WrestlingField(wf, wrestlerOpts(openProfile));
-    fields.wrestling.update(last('bracket'));
-    const wrap = wf.closest('.canvas-wrap');
-    $$('.lv-field-ui', wrap).forEach(n => n.remove());
-    wrap.append(el(`<span class="lv-tap-hint lv-field-ui">👆 ${t('Бөх дээр дарж мэдээлэл харах', 'Tap a wrestler for info')}</span>`));
   }
   const rf = $('#race-field');
   if (rf) { fields.race = new RaceField(rf, {onPick: pickRacer}); if (last('race')) fields.race.update(last('race')); }
@@ -561,7 +561,7 @@ function confetti(canvas, count) {
   requestAnimationFrame(step);
 }
 
-window.addEventListener('naadam:bracket', e => { fields.wrestling?.update(e.detail); renderMatchup(); });
+window.addEventListener('naadam:bracket', renderMatchup);
 window.addEventListener('naadam:bout', e => { const {winner, final, chance} = e.detail; celebrate(winner, {final, chance}); });
 document.addEventListener('click', e => {
   const f = e.target.closest('.bracket .fighter[data-fighter]');
@@ -687,7 +687,8 @@ function renderLiveControls() {
   if (liveTab === 'wrestling') {
     const done = !last('bracket')?.next;
     box.innerHTML = `<button type="button" class="lv-btn red" data-act="bout" ${done || liveBusy ? 'disabled' : ''}>▶ ${liveBusy ? t('Барилдаж байна…', 'Wrestling…') : t('Барилдааныг эхлүүлэх', 'Start the bout')}</button>
-      <button type="button" class="lv-btn ghost" data-act="reset">↻ ${t('Шинээр эхлэх', 'Restart')}</button>`;
+      <button type="button" class="lv-btn ghost" data-act="reset">↻ ${t('Шинээр эхлэх', 'Restart')}</button>
+      <a class="lv-btn ghost" href="#wrestling">${t('Бөхийн байршил', 'Track wrestlers')} ↗</a>`;
   } else if (liveTab === 'racing') {
     box.innerHTML = `<button type="button" class="lv-btn red" data-act="pause">${racePaused ? '▶ ' + t('Үргэлжлүүлэх', 'Resume') : 'Ⅱ ' + t('Зогсоох', 'Pause')}</button>
       <span class="lv-hint">${t('Морины цэг дээр дарж дагах', 'Tap a horse to follow it')}</span>`;
@@ -779,12 +780,43 @@ setInterval(() => {
 }, 1000);
 
 /* ---------------- Boot + language/theme refresh ---------------- */
+const wrestlingTracker = new WrestlingTracker($('#wrestling-tracker'), {
+  describe: i => {
+    const legend = LEGENDS[i];
+    const wrestler = legend ?? DEMO_WRESTLERS[i - LEGENDS.length];
+    const rank = WRESTLING_RANKS[wrestler.rank];
+    const name = legendName(wrestler);
+    const title = legend?.title[lang()] ?? t(`Улсын ${rank.mn.toLowerCase()}`, `State ${rank.en}`);
+    return {name, shortName: name.slice(name.indexOf(' ') + 1), title, rank, hasProfile: Boolean(legend)};
+  },
+  ranks: () => Object.values(WRESTLING_RANKS).map(rank => ({...rank, label: rank[lang()]})),
+  onPick: openProfile,
+  onCheer: level => {
+    if (!sound.on || document.hidden) return;
+    sound.cheer(level === 5);
+    for (let i = 0; i < level; i++) {
+      sound.noise(.09, {freq: 1800 + i * 120, gain: .065, when: .18 + i * .11});
+    }
+  },
+});
+const syncWrestling = () => {
+  const bracket = last('bracket');
+  const pair = bracket?.next ?? bracket?.winners.slice(4, 6);
+  wrestlingTracker.sync(pair, !$('#splash') && window.naadamApp?.page === 'wrestling');
+};
+window.addEventListener('naadam:page', syncWrestling);
+window.addEventListener('naadam:bracket', syncWrestling);
+window.addEventListener('naadam:entered', syncWrestling, {once: true});
+syncWrestling();
+
 function buildAll() {
   setFieldLabels({tribune: t('ШҮҮГЧИЙН ТАВЦАН', 'JUDGES'), start: t('ГАРАА', 'START'), finish: t('БАРИА', 'FINISH'), km: t('км', 'km'), uukhai: t('Уухай!', 'Uukhai!'), wind: t('САЛХИ', 'WIND'), m: t('м', 'm'), ms: t('м/с', 'm/s'), men: t('ЭРЭГТЭЙ', 'MEN'), women: t('ЭМЭГТЭЙ', 'WOMEN'), round: t('ҮЕ', 'ROUND'), finished: t('ДУУСЛАА', 'FINISHED'), lang: t('mn', 'en')});
   buildHero();
   decorateSportCards();
   buildHomeSections();
   buildSportPages();
+  wrestlingTracker.updateNames();
+  wrestlingTracker.updateRankLegend();
   buildLive();
 }
 buildAll();

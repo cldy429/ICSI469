@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="./css/styles.css" />
 <link rel="stylesheet" href="./css/extras.css" />
 <link rel="stylesheet" href="./css/live.css" />
+<link rel="stylesheet" href="./css/wrestling.css" />
 <script src="./js/theme.js"></script>
 </head>
 <body>
@@ -70,8 +71,60 @@
     </section>
 
     <section id="page-wrestling" class="page sport-page" aria-labelledby="wrestling-title">
-      <div class="page-heading"><div><span class="micro-label"><span class="gold-star">✦</span> 01 / ЭРИЙН ГУРВАН НААДАМ</span><h2 id="wrestling-title">ҮНДЭСНИЙ <em>БӨХ</em><span class="heading-asterisk">✳</span></h2><p>Эр бяр, уран мэх, ёс жудаг. Наадмын талбай дээрх бөх бүр дээр дарж танилц.</p></div><div class="demo-pill"><span class="stream-dot"></span> DEMO · MATCH SIMULATION</div></div>
-      <div class="wrestling-grid"><div class="wrestling-visual"><div class="viewer-bar"><div class="viewer-title"><span class="live-flag">НААДМЫН ТАЛБАЙ</span><span>MONGOLIAN WRESTLING</span></div><button type="button" class="viewer-control" data-go="live">● <span>Live</span></button></div><div class="canvas-wrap short-canvas field-wrap"><div id="wrestling-field" class="field-layer"></div></div><div class="wrestling-caption"><span>ӨРСӨЛДӨӨНИЙ АГШИН</span><strong id="match-callout">БАРИЛДААН ЭХЭЛЛЭЭ</strong></div></div><div class="bracket-panel"><div class="bracket-header"><div><span class="micro-label">ТОГЛОЛТЫН СИМУЛЯЦИ</span><h3>БӨХИЙН <em>ОНООЛТ</em></h3></div><button type="button" class="outline-small" id="next-match">ДАРААГИЙН БАРИЛДААН →</button></div><div class="round-label">I ДАВАА <span class="line-fade"></span> II ДАВАА</div><div id="bracket" class="bracket"></div><div class="bracket-foot"><span><i class="legend-red"></i> Ялагч</span><span><i class="legend-muted"></i> Хүлээгдэж буй</span><button type="button" id="reset-bracket" class="text-button">↻ Шинээр эхлэх</button></div></div></div>
+      <h2 class="wt-sr-only" id="wrestling-title">Үндэсний <em>бөх</em></h2>
+      <div class="wrestling-tracker" id="wrestling-tracker">
+        <div class="wt-map" id="wrestling-field" role="group" aria-label="Наадмын цэнгэлдэхийн дээрээс харагдах байдал"></div>
+        <div class="wt-crowd-meter" id="wt-crowd-meter">
+          <span id="wt-crowd-label">Үзэгчдийн дуу</span>
+          <div class="wt-crowd-reading">
+            <span class="wt-crowd-bars" role="meter" aria-labelledby="wt-crowd-label" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1">
+              <i class="on" aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+            </span>
+            <span id="wt-crowd-value" aria-hidden="true">1 / 5</span>
+          </div>
+          <span id="wt-crowd-event" hidden></span>
+          <span class="wt-sr-only" id="wt-crowd-chant" role="status"></span>
+        </div>
+        <section class="wt-pair-panel" id="wt-pair-panel" aria-label="Хосын мэдээлэл" hidden>
+          <div class="wt-panel-header">
+            <span id="wt-phase" role="status"></span>
+            <div class="wt-actions">
+              <button class="wt-control" type="button" id="wt-replay" title="Дахин тоглуулах" aria-label="Дахин тоглуулах">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v6h6M3.7 10a8 8 0 1 1 .9 7"/></svg>
+              </button>
+              <button class="wt-control" type="button" id="wt-fullscreen" title="Бүтэн дэлгэц" aria-label="Бүтэн дэлгэц" hidden>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/></svg>
+              </button>
+              <button class="wt-control" type="button" id="wt-close" title="Хаах" aria-label="Хаах">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="wt-pair">
+            <button class="wt-wrestler" type="button" data-wrestler="0">
+              <span class="wt-rank-mark" data-rank-mark aria-hidden="true"></span>
+              <span class="wt-wrestler-info"><b data-name></b><span data-rank-title></span></span>
+              <span data-position></span>
+            </button>
+            <button class="wt-wrestler" type="button" data-wrestler="1">
+              <span class="wt-rank-mark" data-rank-mark aria-hidden="true"></span>
+              <span class="wt-wrestler-info"><b data-name></b><span data-rank-title></span></span>
+              <span data-position></span>
+            </button>
+          </div>
+          <div class="wt-clock">
+            <progress id="wt-progress" value="0" max="60" aria-label="Демогийн явц"></progress>
+            <span class="wt-time"><time id="wt-time" datetime="PT0S">00:00</time> / 01:00</span>
+          </div>
+        </section>
+        <ul class="wt-rank-legend" id="wt-rank-legend" aria-label="Бөхийн цол"></ul>
+      </div>
+      <div class="bracket-panel wrestling-bracket">
+        <div class="bracket-header"><div><span class="micro-label">ТОГЛОЛТЫН СИМУЛЯЦИ</span><h3>БӨХИЙН <em>ОНООЛТ</em></h3></div><button type="button" class="outline-small" id="next-match">ДАРААГИЙН БАРИЛДААН →</button></div>
+        <div class="round-label">I ДАВАА <span class="line-fade"></span> II ДАВАА</div>
+        <div id="bracket" class="bracket"></div>
+        <div class="bracket-foot"><strong id="match-callout">БАРИЛДААН ЭХЭЛЛЭЭ</strong><span><i class="legend-red"></i> Ялагч</span><span><i class="legend-muted"></i> Хүлээгдэж буй</span><button type="button" id="reset-bracket" class="text-button">↻ Шинээр эхлэх</button></div>
+      </div>
     </section>
 
     <section id="page-archery" class="page sport-page" aria-labelledby="archery-title"><div class="page-heading"><div><span class="micro-label"><span class="gold-star">✦</span> 03 / ЭРИЙН ГУРВАН НААДАМ</span><h2 id="archery-title">СУР <em>ХАРВАА</em><span class="heading-asterisk">✳</span></h2><p>Мэргэн харваачдын оюун ухаан, хараа, төвлөрлийг байны дүрслэлээр.</p></div><div class="demo-pill"><span class="stream-dot"></span> DEMO · SCORE SIMULATION</div></div>

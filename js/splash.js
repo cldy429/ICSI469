@@ -47,7 +47,10 @@
     opened = true;
     splash.classList.add('is-open');
     document.documentElement.classList.remove('splash-lock');
-    const done = () => splash.remove();
+    const done = () => {
+      splash.remove();
+      window.dispatchEvent(new Event('naadam:entered'));
+    };
     if (reducedMotion) done();
     else setTimeout(done, 1300);
   }

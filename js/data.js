@@ -56,7 +56,7 @@ export const PHOTOS = {
 const mnwiki = title => `https://mn.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
 export const LEGENDS = [
   {id: 'baterdene', name: 'Б. Бат-Эрдэнэ', en: 'B. Bat-Erdene', full: 'Бадмаанямбуугийн Бат-Эрдэнэ', wins: 11, runnerUp: 1,
-    years: '1988–1990, 1992–1999', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '1988–1990, 1992–1999', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1964, home: {mn: 'Хэнтий аймаг, Өмнөдэлгэр сум', en: 'Ömnödelger sum, Khentii aimag'},
     path: [['aimag', null, 'Аймгийн арслан', 'Aimag Lion'], ['state', 1985, 'Улсын начин', 'State Falcon'], ['state', 1986, 'Улсын заан', 'State Elephant'],
       ['state', 1988, 'Улсын арслан', 'State Lion'], ['state', 1989, 'Улсын аварга', 'State Champion'], ['state', 1990, 'Даян, дархан аварга', 'Wide & Grand Champion']],
@@ -67,7 +67,7 @@ export const LEGENDS = [
     photo: {src: 'https://upload.wikimedia.org/wikipedia/commons/0/01/GRIX3129-550%281%29_%281%29.jpg', author: 'Mil.ru', license: 'CC BY 4.0',
       page: 'https://commons.wikimedia.org/wiki/File:GRIX3129-550(1)_(1).jpg'}},
   {id: 'batsuuri', name: 'Н. Батсуурь', en: 'N. Batsuuri', full: 'Намсрайжавын Батсуурь', wins: 4, runnerUp: 2,
-    years: '2014, 2018–2019, 2024', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '2014, 2018–2019, 2024', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1987, home: {mn: 'Увс аймаг, Ховд сум', en: 'Khovd sum, Uvs aimag'},
     path: [['aimag', 2007, 'Аймгийн начин', 'Aimag Falcon'], ['aimag', 2011, 'Аймгийн арслан', 'Aimag Lion'], ['state', 2013, 'Улсын харцага', 'State Hawk'],
       ['state', 2014, 'Улсын арслан', 'State Lion'], ['state', 2018, 'Улсын аварга', 'State Champion'], ['state', 2021, 'Даян аварга', 'Wide Champion'], ['state', 2024, 'Дархан аварга', 'Grand Champion']],
@@ -75,7 +75,7 @@ export const LEGENDS = [
     awards: {mn: 'Жүдо бөхийн улсын аварга (2013), спортын мастер. 2026 оны наадамд шөвгийн дөрөвт үлдсэн.', en: 'National judo champion (2013), master of sport. Reached the final four at the 2026 Naadam.'},
     note: {mn: '2024 оны наадамд түрүүлж дархан аварга болсон.', en: 'Won the 2024 Naadam to become Grand Champion.'}},
   {id: 'munkhbat', name: 'Ж. Мөнхбат', en: 'J. Mönkhbat', full: 'Жигжидийн Мөнхбат', wins: 6, runnerUp: 4,
-    years: '1963–1967, 1974', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '1963–1967, 1974', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1941, home: {mn: 'Төв аймаг, Эрдэнэсант сум', en: 'Erdenesant sum, Töv aimag'},
     path: [['sum', 1960, 'Сумын заан', 'Sum Elephant'], ['state', 1961, 'Улсын заан', 'State Elephant'], ['state', 1963, 'Улсын арслан', 'State Lion'],
       ['state', 1965, 'Улсын аварга', 'State Champion'], ['state', 1966, 'Дархан аварга', 'Grand Champion']],
@@ -83,7 +83,7 @@ export const LEGENDS = [
     awards: {mn: 'Олимпын мөнгөн медальт (чөлөөт бөх), Гавьяат тамирчин, Хөдөлмөрийн баатар (1994)', en: 'Olympic silver medallist (freestyle), Honoured Athlete, Hero of Labour (1994)'},
     note: {mn: 'Таван жил дараалан түрүүлсэн.', en: 'Won five Naadams in a row.'}},
   {id: 'damdin', name: 'Д. Дамдин', en: 'D. Damdin', full: 'Дарийн Дамдин', wins: 5, runnerUp: 5,
-    years: '1956–1960', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '1956–1960', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1931, home: {mn: 'Хөвсгөл аймаг, Цагаан-Үүр сум', en: 'Tsagaan-Üür sum, Khövsgöl aimag'},
     path: [['sum', null, 'Сумын наадмын түрүү', 'Sum Naadam winner'], ['state', 1952, 'Улсын начин', 'State Falcon'], ['state', 1956, 'Улсын арслан', 'State Lion'],
       ['state', 1957, 'Улсын аварга', 'State Champion'], ['state', 1959, 'Даян аварга', 'Wide Champion'], ['state', 1960, 'Дархан аварга', 'Grand Champion']],
@@ -91,14 +91,14 @@ export const LEGENDS = [
     awards: {mn: 'Хөдөлмөрийн баатар (1999), циркийн Гавьяат жүжигчин', en: 'Hero of Labour (1999), Honoured Artist of the circus'},
     note: {mn: '1956–1960 онд таван удаа дараалан түрүүлсэн.', en: 'Won five straight titles, 1956–1960.'}},
   {id: 'bayanmunkh', name: 'Х. Баянмөнх', en: 'Kh. Bayanmönkh', full: 'Хорлоогийн Баянмөнх', wins: 10, runnerUp: 2,
-    years: '1968, 1971–1973, 1975, 1977, 1979, 1981–1982, 1987', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '1968, 1971–1973, 1975, 1977, 1979, 1981–1982, 1987', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1944, home: {mn: 'Увс аймаг, Хяргас сум', en: 'Khyargas sum, Uvs aimag'},
     path: [['state', 1963, 'Улсын начин, заан', 'State Falcon, Elephant'], ['state', 1966, 'Улсын арслан', 'State Lion'], ['state', 1968, 'Улсын аварга', 'State Champion'], ['state', 1971, 'Дархан аварга', 'Grand Champion']],
     local: {mn: '1963 онд анхны улсын наадамдаа начин, заан цол зэрэг авсан.', en: 'Earned State Falcon and Elephant at his first national Naadam in 1963.'},
     awards: {mn: 'Чөлөөт бөхийн дэлхийн аварга, Олимпын мөнгөн медальт, Хөдөлмөрийн баатар, "XX зууны манлай бөх"', en: 'Freestyle world champion, Olympic silver medallist, Hero of Labour, "Wrestler of the 20th century"'},
     note: {mn: '1968–1987 оны хооронд арван удаа түрүүлсэн.', en: 'Ten titles between 1968 and 1987.'}},
   {id: 'usukhbayar', name: 'Г. Өсөхбаяр', en: 'G. Ösökhbayar', full: 'Гэлэгжамцын Өсөхбаяр', wins: 4, runnerUp: 1,
-    years: '2002–2003, 2005, 2009', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '2002–2003, 2005, 2009', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1973, home: {mn: 'Архангай аймаг, Батцэнгэл сум', en: 'Battsengel sum, Arkhangai aimag'},
     path: [['aimag', 1994, 'Аймгийн арслан', 'Aimag Lion'], ['state', 1995, 'Улсын заан', 'State Elephant'], ['state', 2002, 'Улсын арслан', 'State Lion'],
       ['state', 2003, 'Улсын аварга', 'State Champion'], ['state', 2005, 'Далай аварга', 'Dalai Champion'], ['state', 2009, 'Даян аварга', 'Wide Champion'], ['state', 2014, 'Дархан аварга', 'Grand Champion']],
@@ -106,14 +106,14 @@ export const LEGENDS = [
     awards: {mn: 'Сүмо бөхийн Азийн аварга (2001), Азийн наадмын хүрэл медаль (1998). Өвөө нь даян аварга Н.Жамъян.', en: 'Asian sumo champion (2001), Asian Games bronze (1998). His grandfather was Wide Champion N. Jamyan.'},
     note: {mn: '2002–2009 оны хооронд дөрвөн удаа түрүүлсэн.', en: 'Four titles between 2002 and 2009.'}},
   {id: 'tuvdendorj', name: 'Б. Түвдэндорж', en: 'B. Tüvdendorj', full: 'Бадамдоригийн Түвдэндорж', wins: 7, runnerUp: 2,
-    years: '1939, 1941, 1945–1946, 1952–1954', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '1939, 1941, 1945–1946, 1952–1954', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1916, home: {mn: 'Булган аймаг, Хангал сум', en: 'Khangal sum, Bulgan aimag'},
     path: [['state', 1939, 'Улсын арслан', 'State Lion'], ['state', 1941, 'Улсын аварга', 'State Champion'], ['state', 1945, 'Даян аварга', 'Wide Champion'], ['state', 1946, 'Дархан аварга', 'Grand Champion']],
     local: {mn: 'Сум, аймгийн наадмын амжилтын тухай эх сурвалжид мэдээлэл алга.', en: 'No sum or aimag results are recorded in the source.'},
     awards: {mn: 'Монгол Улсын анхны гавьяат тамирчин, "Далай даян" чимэг (1951)', en: "Mongolia's first Honoured Athlete, \"Dalai Dayan\" honour (1951)"},
     note: {mn: '1939–1954 оны хооронд долоон удаа түрүүлсэн.', en: 'Seven titles between 1939 and 1954.'}},
   {id: 'tserentogtokh', name: 'Д. Цэрэнтогтох', en: 'D. Tserentogtokh', full: 'Дашдоржийн Цэрэнтогтох', wins: 4, runnerUp: 5,
-    years: '1978, 1980, 1983–1984', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
+    years: '1978, 1980, 1983–1984', rank: 'grand', title: {mn: 'Улсын дархан аварга', en: 'State Grand Champion'},
     born: 1951, home: {mn: 'Өвөрхангай аймаг, Нарийнтээл сум', en: 'Nariinteel sum, Övörkhangai aimag'},
     path: [['state', 1972, 'Улсын начин', 'State Falcon'], ['state', 1977, 'Улсын заан', 'State Elephant'], ['state', 1978, 'Улсын арслан', 'State Lion'],
       ['state', 1979, 'Улсын аварга', 'State Champion'], ['state', 1980, 'Даян аварга', 'Wide Champion'], ['state', 1981, 'Дархан аварга', 'Grand Champion']],
@@ -121,7 +121,7 @@ export const LEGENDS = [
     awards: {mn: 'Чөлөөт бөхийн Азийн наадмын аварга, Гавьяат тамирчин (1991)', en: 'Asian Games freestyle champion, Honoured Athlete (1991)'},
     note: {mn: 'Таван удаа үзүүрлэсэн нь энэ жагсаалтад хамгийн олон.', en: 'Five runner-up finishes, joint most in this list.'}},
   {id: 'orkhonbayar', name: 'Б. Орхонбаяр', en: 'B. Orkhonbayar', full: 'Баярсайханы Орхонбаяр', wins: 1, runnerUp: 2,
-    years: '2026', title: {mn: 'Улсын даян аварга', en: 'State Wide Champion'},
+    years: '2026', rank: 'wide', title: {mn: 'Улсын даян аварга', en: 'State Wide Champion'},
     born: 1998, home: {mn: 'Сэлэнгэ аймаг, Цагааннуур сум', en: 'Tsagaannuur sum, Selenge aimag'},
     path: [['sum', 2017, 'Сумын заан', 'Sum Elephant'], ['aimag', 2018, 'Аймгийн арслан', 'Aimag Lion'], ['state', 2019, 'Улсын начин', 'State Falcon'],
       ['state', 2021, 'Улсын харцага', 'State Hawk'], ['state', 2022, 'Улсын арслан', 'State Lion'], ['state', 2026, 'Даян аварга', 'Wide Champion']],
@@ -131,6 +131,26 @@ export const LEGENDS = [
     note: {mn: '2026 онд 1024 бөхийн барилдаанд арав даваад түрүүлж, аварга цолыг алгасан даян аварга болсон.', en: 'Won all ten rounds of the 1,024-wrestler 2026 Naadam and went straight to Wide Champion.'}},
 ];
 LEGENDS.forEach(l => { l.wiki = mnwiki(l.full); });
+
+export const WRESTLING_RANKS = {
+  grand: {mn: 'Дархан аварга', en: 'Grand Champion', color: '#f7ce79', symbol: '✦', scale: 1.13},
+  wide: {mn: 'Даян аварга', en: 'Wide Champion', color: '#efb2ff', symbol: '◆', scale: 1.09},
+  lion: {mn: 'Арслан', en: 'Lion', color: '#ff9d96', symbol: '▲', scale: 1.04},
+  elephant: {mn: 'Заан', en: 'Elephant', color: '#8ed2ff', symbol: '■', scale: 1},
+  hawk: {mn: 'Харцага', en: 'Hawk', color: '#8aefd1', symbol: '◇', scale: .94},
+  falcon: {mn: 'Начин', en: 'Falcon', color: '#f2f5fa', symbol: '●', scale: .88},
+};
+
+// Fictional roster entries fill the remaining places in the stadium demo.
+export const DEMO_WRESTLERS = [
+  {name: 'С. Далайцэрэн', en: 'S. Dalaitseren', rank: 'lion'},
+  {name: 'Д. Содбилэг', en: 'D. Sodbileg', rank: 'elephant'},
+  {name: 'М. Энхтөр', en: 'M. Enkhtör', rank: 'hawk'},
+  {name: 'Ц. Төгөлдөр', en: 'Ts. Tögöldör', rank: 'falcon'},
+  {name: 'Э. Хас-Очир', en: 'E. Khas-Ochir', rank: 'lion'},
+  {name: 'П. Алтансүх', en: 'P. Altansükh', rank: 'elephant'},
+  {name: 'Л. Мөнх-Оргил', en: 'L. Mönkh-Orgil', rank: 'falcon'},
+];
 
 // Үндэсний их баяр наадам 2026 — хүчит бөхийн барилдаан (mn.wikipedia).
 export const NAADAM_2026 = {
