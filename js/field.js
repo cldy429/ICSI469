@@ -163,7 +163,7 @@ function stadiumSpectator(index, x, y, shirt) {
   </g>`;
 }
 
-function stadiumField(id) {
+function stadiumField() {
   const seatColors = ['#d7b07d', '#bd6c64', '#e0d4b4', '#749ea5', '#7f9290'];
   const seatsPerRow = 184;
   const fanSeats = new Map(Array.from({length: 24}, (_, i) => [Math.floor((i + .5) * seatsPerRow / 24), i]));
@@ -185,23 +185,13 @@ function stadiumField(id) {
     return `<ellipse cx="480" cy="260" rx="${rx}" ry="${ry}" fill="none" stroke="#788581" opacity=".3"/>${dots}`;
   }).join('');
 
-  return `<defs>
-      <radialGradient id="${id}-grass" cx="46%" cy="35%" r="70%">
-        <stop stop-color="#77a465"/><stop offset=".62" stop-color="#4d8354"/><stop offset="1" stop-color="#2b5c44"/>
-      </radialGradient>
-      <pattern id="${id}-mow" width="72" height="20" patternUnits="userSpaceOnUse">
-        <rect width="36" height="20" fill="#143f35" opacity=".15"/>
-        <path d="M0 0h72M0 10h72" stroke="#d5e8ac" stroke-opacity=".09"/>
-      </pattern>
-    </defs>
-    <g class="wt-bowl" aria-hidden="true">
+  return `<g class="wt-bowl" aria-hidden="true">
       <ellipse cx="480" cy="267" rx="459" ry="247" fill="#071a1c" opacity=".85"/>
       <ellipse cx="480" cy="260" rx="455" ry="247" fill="#243e37" stroke="#879075" stroke-width="2"/>
       <ellipse cx="480" cy="260" rx="451" ry="244" fill="#334b4a"/>
       ${seats}
       <ellipse cx="480" cy="260" rx="410" ry="211" fill="#886b4c"/>
-      <ellipse cx="480" cy="260" rx="400" ry="201" fill="url(#${id}-grass)" stroke="#d3d8a6" stroke-width="2"/>
-      <ellipse cx="480" cy="260" rx="399" ry="200" fill="url(#${id}-mow)"/>
+      <ellipse cx="480" cy="260" rx="400" ry="201" fill="#4d8354" stroke="#d3d8a6" stroke-width="2"/>
       <g fill="none" stroke="#e4edc7" stroke-opacity=".55">
         <ellipse cx="480" cy="260" rx="376" ry="177" stroke-dasharray="4 7"/>
         <circle cx="480" cy="260" r="77"/>
@@ -242,7 +232,7 @@ export class WrestlingTrackingField {
         ${markers}
       </g>`;
     }).join('');
-    this.svg = svg('0 0 960 520', `${stadiumField('wt' + ++uid)}
+    this.svg = svg('0 0 960 520', `${stadiumField()}
       <g class="wt-bouts" style="display:none">${bouts}</g>
       <g class="wt-chant" aria-hidden="true" hidden>
         <path/>
