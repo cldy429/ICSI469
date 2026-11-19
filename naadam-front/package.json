@@ -1,0 +1,16 @@
+{
+  "name": "naadam-front",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "wrangler dev -c wrangler.jsonc -c ../naadam-api/wrangler.jsonc",
+    "start": "npm run dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/check"
+  },
+  "devDependencies": {
+    "wrangler": "^4.165.0"
+  },
+  "type": "module"
+}

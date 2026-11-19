@@ -286,6 +286,10 @@ function buildSubscription(box) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.textContent = t('И-мэйл хаягаа зөв оруулна уу.', 'Please enter a valid email.'); return; }
     let ok = false;
     if (hasServer) { try { ok = (await fetch('/api/subscribe', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email, plan})})).ok; } catch {} }
+    if (!ok && hasServer) {
+      msg.textContent = t('Бүртгэл хадгалагдсангүй. Дахин оролдоно уу.', 'Subscription could not be saved. Please try again.');
+      return;
+    }
     if (!ok) store.set('naadam-sub', JSON.stringify({email, plan}));
     msg.innerHTML = `<span class="lv-success">✓ ${t('Баярлалаа! Та бүртгэгдлээ (demo).', 'Thank you! You are subscribed (demo).')}</span>`;
     sound.tone(660, .15); sound.tone(880, .2, {when: .12});
@@ -345,12 +349,14 @@ function mountComments(box, topic) {
     if (hasServer) {
       try {
         const r = await fetch('/api/comments', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, text, topic})});
-        if (r.status === 429) $('.lv-status', form).textContent = t('Түр хүлээгээд дахин илгээнэ үү.', 'Please wait a moment.');
+        if (!r.ok) $('.lv-status', form).textContent = r.status === 429
+          ? t('Түр хүлээгээд дахин илгээнэ үү.', 'Please wait a moment.')
+          : t('Илгээгдсэнгүй. Дахин оролдоно уу.', 'Could not post. Please try again.');
         if (r.ok) saved = await r.json();
-      } catch {}
+      } catch { $('.lv-status', form).textContent = t('Илгээгдсэнгүй. Дахин оролдоно уу.', 'Could not post. Please try again.'); }
     }
     if (!saved && !hasServer) { saved = {id: Date.now().toString(36), name, text, topic, at: new Date().toISOString(), likes: 0}; saveLocal(saved); }
-    if (saved) { addComment(saved); form.text.value = ''; sound.tone(740, .1); }
+    if (saved) { addComment(saved); form.text.value = ''; $('.lv-status', form).textContent = t('● Шууд холбогдсон', '● Live'); sound.tone(740, .1); }
     setTimeout(() => { btn.disabled = false; }, 1200);
   });
   commentBoxes.add(box);
@@ -361,16 +367,32 @@ function saveLocal(c) { try { const a = JSON.parse(store.get('naadam-comments') 
 async function likeComment(id) {
   const liked = store.get('naadam-liked') || '';
   if (liked.includes(id)) return;
+  let updated;
+  if (hasServer) {
+    try {
+      const response = await fetch(`/api/comments/${encodeURIComponent(id)}/like`, {method: 'POST'});
+      if (!response.ok) return;
+      updated = await response.json();
+    } catch { return; }
+  }
   store.set('naadam-liked', liked + ',' + id);
-  const c = commentCache.find(x => x.id === id); if (c) c.likes = (c.likes || 0) + 1;
+  const c = commentCache.find(x => x.id === id); if (c) c.likes = updated ? updated.likes : (c.likes || 0) + 1;
   commentBoxes.forEach(renderCommentBox);
-  if (hasServer) { try { await fetch(`/api/comments/${encodeURIComponent(id)}/like`, {method: 'POST'}); } catch {} }
+}
+async function refreshComments() {
+  try {
+    const response = await fetch('/api/comments');
+    if (!response.ok) return;
+    const comments = await response.json();
+    if (Array.isArray(comments)) { commentCache = comments; commentBoxes.forEach(renderCommentBox); }
+  } catch {}
 }
 async function loadComments() {
   if (hasServer) {
-    try { commentCache = await (await fetch('/api/comments')).json(); } catch { commentCache = []; }
+    await refreshComments();
     try {
       const es = new EventSource('/api/events');
+      es.onopen = refreshComments;
       es.onmessage = ev => {
         try {
           const p = JSON.parse(ev.data);

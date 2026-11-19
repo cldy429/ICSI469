@@ -2,40 +2,107 @@
 
 A responsive web app about the Mongolian Naadam festival: wrestling, horse racing and archery. It uses real photos, real champion facts, an interactive Naadam field and a simulated live view. **All bout results, win chances, race data and scores are simulated demo data.** The site does not show official live Naadam results.
 
-## Run
+## Run locally
 
-Requires Node.js 18+. No `npm install` is needed.
+Requires Node.js 22+.
+
+Run these commands from the repository root:
 
 ```bash
-npm start   # эсвэл: node server/server.mjs
+npm --prefix naadam-api ci
+npm --prefix naadam-front ci
+npm run dev
 ```
 
-Open **http://localhost:4173**. The server serves the site and provides:
+Open the frontend URL printed by Wrangler, usually **http://localhost:8787**. If another process already uses that port, Wrangler prints the next available port. Both Workers run together. To run only the backend, use `npm --prefix naadam-api run dev`.
 
-- `GET /api/events`: a real Server-Sent Events stream with simulated race telemetry, about every 1.2 seconds.
-- `GET /api/wrestling/events`: one minute of positions for 16 wrestlers in eight simultaneous bouts, streamed once per second. Optional `red` and `blue` parameters select the first pair using distinct indexes in `LEGENDS`.
-- `GET/POST /api/comments`: viewer comments, with likes, by topic (`home`, `wrestling`, `racing`, `archery`, `live`).
-- `POST /api/subscribe`: the subscription form.
+The frontend serves the site and forwards `/api/*` requests through its `API` service binding to `naadam-api`. The browser uses the same origin for assets and API requests.
 
-Saved data lives in `server/data/` (git-ignored and never served). Photos are loaded from Wikimedia Commons, so an Internet connection is needed to see them.
+The API provides:
+
+- `GET /api/health`: backend health.
+- `GET /api/events`: shared race telemetry every 1.2 seconds and live comment/like events.
+- `GET /api/wrestling/events`: one minute of positions for 16 wrestlers in eight simultaneous bouts, streamed once per second. Optional `red` and `blue` parameters select the first pair using two distinct IDs from 0 to 15.
+- `GET/POST /api/comments`: viewer comments by topic (`home`, `wrestling`, `racing`, `archery`, `live`).
+- `POST /api/comments/:id/like`: increment a comment's likes.
+- `POST /api/subscribe`: save or update a demo subscription.
+
+Comments, likes and subscriptions persist in a SQLite-backed Durable Object named `NaadamRoom`. All viewers use the same room. Local data lives in `naadam-api/.wrangler/` and is separate from deployed data. Photos are loaded from Wikimedia Commons.
 
 ## Folders
 
+```text
+naadam-api/
+  src/index.js            API routing and wrestling SSE
+  src/room.js             persistent comments, likes, subscriptions and shared race/chat SSE
+  src/responses.js        JSON/body handling and SSE cleanup
+  src/wrestling-demo.js   source of the one-minute dummy data
+  wrangler.jsonc          backend Worker, SQLite Durable Object binding and migration
+  test/index.spec.js      API integration checks
+
+naadam-front/
+  public/index.html       page skeleton
+  public/css/             styles
+  public/js/              routing, sport views, language, theme and crowd animation
+  src/index.js            /api proxy to the backend
+  scripts/build.mjs       copies the API demo module for offline playback
+  wrangler.jsonc          frontend Worker, static assets and API service binding
 ```
-index.html          page skeleton
-css/styles.css      base layout
-css/extras.css      splash, language menu, light/dark theme
-css/live.css        photo design, field views, Live page, profiles, comments, subscription
-js/app.js           routing and the simulations (bracket, race, archery); emits naadam:* events
-js/field.js         SVG views: Naadam stadium, race route map, Khalkh archery sur wall
-js/wrestling.js     wrestling replay, live telemetry and fullscreen controls
-js/wrestling-demo.js shared one-minute dummy positions for the server and local playback
-js/live.js          photo hero, profiles + win chance, celebration, Live page, comments, subscription
-js/data.js          champion facts (title path, sum/aimag wins), 2026 State Naadam results, photo credits
-js/i18n.js          MN / EN / RU / JA / KO texts
-js/theme.js, js/splash.js
-server/server.mjs   dependency-free Node server
+
+Edit dummy data in `naadam-api/src/wrestling-demo.js`. The frontend build copies it into `naadam-front/public/js/wrestling-demo.js`, so online and fallback playback use the same frames. Wrangler runs this build automatically before development and deployment.
+
+## Deploy to Cloudflare
+
+Install both projects' dependencies using the commands above, then sign in:
+
+```bash
+cd naadam-api
+npx wrangler login
+cd ..
 ```
+
+Deploy the backend first, followed by the frontend:
+
+```bash
+npm run deploy:api
+npm run deploy:front
+```
+
+The backend deploy creates its SQLite-backed Durable Object through the `v1` migration in its configuration. The frontend's `API` binding points to the Worker named `naadam-api`. Both Workers must belong to the same Cloudflare account. If you change the backend name, update the frontend's `services[0].service` value too.
+
+Open the **naadam-front** deployment URL. Verify `/api/health`, then open `/#wrestling`. Subscribe, comment and like requests are processed by the backend through this frontend URL.
+
+To connect a purchased domain, open the deployed **naadam-front** Worker in the Cloudflare dashboard, then **Settings → Domains & Routes → Add → Custom Domain** and enter your domain. The domain's zone must already be active in that Cloudflare account. The backend continues to work through the existing service binding.
+
+For Git-based deployment, commit and push the prepared code from the repository root:
+
+```bash
+git add -u
+git add naadam-api naadam-front
+git commit -m "Prepare frontend and API for Cloudflare"
+git push origin main
+```
+
+In Cloudflare, open **Workers & Pages → Create application → GitHub** and select `cldy429/ICSI469`. Connect the same repository to two Worker projects with these settings:
+
+| Worker | Root directory | Build command | Deploy command |
+| --- | --- | --- | --- |
+| naadam-api | `naadam-api` | leave empty | `npx wrangler deploy` |
+| naadam-front | `naadam-front` | `npm run build` | `npx wrangler deploy` |
+
+Use `main` as the production branch and keep the Worker names exactly as shown. Deploy `naadam-api` successfully before creating `naadam-front`, because the frontend's service binding requires the backend to exist. For existing Workers, connect the repository under **Settings → Builds → Connect**.
+
+Set the frontend's Build command explicitly in the dashboard: Workers Builds does not honor the Custom Builds settings in Wrangler configuration. Keep both folders in the repository because the frontend build copies the dummy data module from the backend. Once both projects are connected, pushes to `main` trigger automatic deployments. See the [Cloudflare Git integration](https://developers.cloudflare.com/workers/ci-cd/builds/) and [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) documentation.
+
+## Check before deploying
+
+```bash
+npm test
+npm --prefix naadam-api run check
+npm --prefix naadam-front run check
+```
+
+The check commands build the deployment packages locally using `wrangler deploy --dry-run`.
 
 ## Screens
 
@@ -55,7 +122,7 @@ server/server.mjs   dependency-free Node server
 
 ## Tech
 
-Vanilla JS ES modules, inline SVG with CSS transitions, WebAudio, Node.js HTTP + Server-Sent Events. No build tool, framework or database.
+Vanilla JS ES modules, inline SVG with CSS transitions, WebAudio, Cloudflare Workers, Server-Sent Events and SQLite-backed Durable Objects.
 
 ## Sources
 
@@ -63,7 +130,7 @@ Champion facts and the 2026 results: Mongolian Wikipedia pages of each wrestler 
 
 ## Connecting real event data
 
-Replace the simulated `eventPacket()` in `server/server.mjs` with an authorized data feed in the same JSON shape:
+Replace `advanceRace()` in `naadam-api/src/room.js` with an authorized data feed in the same JSON shape:
 
 ```json
 {"type": "race", "demo": false, "horses": [{"progress": 38.5, "speed": 51.2}]}

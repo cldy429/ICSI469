@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "naadam-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-19",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "NAADAM",
+        "class_name": "NaadamRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "NaadamRoom"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}
