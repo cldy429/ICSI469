@@ -5,6 +5,7 @@ import {PHOTOS, WRESTLING_RANKS, rating, winChance, SOURCES} from './data.js';
 import {LEGENDS, NAADAM_2026, getWrestler, cachedWrestler, prefetchWrestlers} from './wrestlers.js';
 import {WrestlingField, RaceField, ArcheryField, fighterStates, setFieldLabels} from './field.js';
 import {WrestlingTracker} from './wrestling.js';
+import {mergeComments, visibleComments} from './comments.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -325,32 +326,53 @@ function commentHtml(c) {
   </div>`;
 }
 function renderCommentBox(box) {
-  const topic = box.dataset.comments;
-  const list = commentCache.filter(c => topic === 'home' || c.topic === topic).slice().reverse();
+  if (!box.isConnected) { commentBoxes.delete(box); return; }
+  const filter = box.dataset.commentFilter || 'all';
+  const list = visibleComments(commentCache, filter);
   const ul = $('.lv-list', box); if (!ul) return;
-  ul.innerHTML = list.length ? list.map(commentHtml).join('') : `<div class="lv-empty">${t('Анхны сэтгэгдлийг та бичээрэй 👋', 'Be the first to comment 👋')}</div>`;
+  ul.innerHTML = list.length ? list.map(commentHtml).join('') : `<div class="lv-empty">${filter === 'all'
+    ? t('Анхны сэтгэгдлийг та бичээрэй 👋', 'Be the first to comment 👋')
+    : t('Энэ хэсэгт сэтгэгдэл алга. Бүх сэтгэгдлийг «Бүгд» дээрээс хараарай.', 'No comments in this section. Select All to see every comment.')}</div>`;
+  $$('[data-comment-filter]', box).forEach(button => button.setAttribute('aria-pressed', String(button.dataset.commentFilter === filter)));
   $$('[data-like]', ul).forEach(b => b.addEventListener('click', () => likeComment(b.dataset.like)));
 }
 function mountComments(box, topic) {
   if (!box) return;
   box.dataset.comments = topic;
+  box.dataset.commentFilter = 'all';
   box.innerHTML = `<div class="lv-comments">
     <form class="lv-panel lv-form">
       <input name="name" maxlength="32" placeholder="${t('Таны нэр', 'Your name')}" value="${esc(store.get('naadam-name') || '')}" />
-      <textarea name="text" maxlength="280" required placeholder="${t('Юу бодож байна? Жишээ нь: Бат-Эрдэнэ аварга ялна! 💪', 'What do you think? e.g. Go Bat-Erdene! 💪')}"></textarea>
+      <textarea name="text" minlength="2" maxlength="280" required placeholder="${t('Юу бодож байна? Жишээ нь: Бат-Эрдэнэ аварга ялна! 💪', 'What do you think? e.g. Go Bat-Erdene! 💪')}"></textarea>
       <div class="lv-emojis">${['🔥', '👏', '💪', '🐎', '🏹', '🇲🇳'].map(e => `<button type="button" data-emoji="${e}">${e}</button>`).join('')}</div>
-      <div class="lv-form-foot"><span class="lv-status">${hasServer ? t('● Шууд холбогдсон', '● Live') : t('Офлайн горим', 'Offline mode')}</span><button class="lv-btn red" type="submit">${t('Илгээх', 'Post')} ↗</button></div>
+      <div class="lv-form-foot"><span class="lv-status" role="status">${hasServer ? t('Сэтгэгдлээ бичээрэй', 'Leave a comment') : t('Офлайн горим', 'Offline mode')}</span><button class="lv-btn red" type="submit">${t('Илгээх', 'Post')} ↗</button></div>
     </form>
-    <div class="lv-panel"><div class="lv-list"></div></div>
+    <div class="lv-panel">
+      <div class="lv-comment-filters" role="group" aria-label="${t('Сэтгэгдэл шүүх', 'Filter comments')}">
+        <button type="button" data-comment-filter="all" aria-pressed="true">${t('Бүгд', 'All')}</button>
+        <button type="button" data-comment-filter="${topic}" aria-pressed="false">${t(...TOPIC_LABEL[topic])}</button>
+      </div>
+      <div class="lv-list" role="log" aria-live="polite"></div>
+    </div>
   </div>`;
   const form = $('form', box);
-  $$('[data-emoji]', form).forEach(b => b.addEventListener('click', () => { form.text.value += b.dataset.emoji; form.text.focus(); }));
+  const nameInput = form.elements.namedItem('name'), textInput = form.elements.namedItem('text');
+  const status = $('.lv-status', form);
+  $$('[data-emoji]', form).forEach(b => b.addEventListener('click', () => { textInput.value += b.dataset.emoji; textInput.focus(); }));
+  $$('[data-comment-filter]', box).forEach(button => button.addEventListener('click', () => {
+    box.dataset.commentFilter = button.dataset.commentFilter;
+    renderCommentBox(box);
+  }));
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const name = form.name.value.trim().slice(0, 32) || t('Зочин', 'Guest'), text = form.text.value.trim().slice(0, 280);
-    if (text.length < 2) return;
+    const name = nameInput.value.trim().slice(0, 32) || t('Зочин', 'Guest'), text = textInput.value.trim().slice(0, 280);
+    if (text.length < 2) {
+      status.textContent = t('Сэтгэгдэл дор хаяж 2 тэмдэгттэй байна.', 'Please enter at least 2 characters.');
+      return;
+    }
     store.set('naadam-name', name);
     const btn = $('button[type=submit]', form); btn.disabled = true;
+    status.textContent = t('Илгээж байна…', 'Posting…');
     let saved = null;
     if (hasServer) {
       try {
@@ -362,13 +384,19 @@ function mountComments(box, topic) {
       } catch { $('.lv-status', form).textContent = t('Илгээгдсэнгүй. Дахин оролдоно уу.', 'Could not post. Please try again.'); }
     }
     if (!saved && !hasServer) { saved = {id: Date.now().toString(36), name, text, topic, at: new Date().toISOString(), likes: 0}; saveLocal(saved); }
-    if (saved) { addComment(saved); form.text.value = ''; $('.lv-status', form).textContent = t('● Шууд холбогдсон', '● Live'); sound.tone(740, .1); }
+    if (saved) {
+      addComment(saved);
+      textInput.value = '';
+      status.textContent = t('✓ Сэтгэгдэл нэмэгдлээ', '✓ Comment posted');
+      $('.lv-list', box).scrollTop = 0;
+      sound.tone(740, .1);
+    }
     setTimeout(() => { btn.disabled = false; }, 1200);
   });
   commentBoxes.add(box);
   renderCommentBox(box);
 }
-function addComment(c) { if (commentCache.some(x => x.id === c.id)) return; commentCache.push(c); commentBoxes.forEach(renderCommentBox); }
+function addComment(c) { commentCache = mergeComments(commentCache, [c]); commentBoxes.forEach(renderCommentBox); }
 function saveLocal(c) { try { const a = JSON.parse(store.get('naadam-comments') || '[]'); a.push(c); store.set('naadam-comments', JSON.stringify(a.slice(-100))); } catch {} }
 async function likeComment(id) {
   const liked = store.get('naadam-liked') || '';
@@ -390,7 +418,7 @@ async function refreshComments() {
     const response = await fetch('/api/comments');
     if (!response.ok) return;
     const comments = await response.json();
-    if (Array.isArray(comments)) { commentCache = comments; commentBoxes.forEach(renderCommentBox); }
+    if (Array.isArray(comments)) { commentCache = mergeComments(commentCache, comments); commentBoxes.forEach(renderCommentBox); }
   } catch {}
 }
 async function loadComments() {

@@ -33,6 +33,8 @@ The API provides:
 
 Wrestler profiles, comments, likes and subscriptions persist in a SQLite-backed Durable Object named `NaadamRoom`. All viewers use the same room. Local data lives in `naadam-api/.wrangler/` and is separate from deployed data. Photos are loaded from Wikimedia Commons.
 
+Every page shows all recent comments by default, including general comments posted on the home page. The comment panel offers an explicit topic filter and keeps the topic badge on each entry. Successful submissions appear immediately and stay visible if an older refresh response arrives afterward.
+
 ## Wrestler database and preparation
 
 The `wrestlers` SQL table contains exactly 512 registrations with stable numeric IDs (`0`–`511`). The original nine champion profiles and seven fictional stadium participants keep their IDs. Another 496 fictional wrestlers provide a mixture of state, aimag and sum titles. Fictional profiles are marked `isDemo: true` and labelled as demo wrestlers in the profile drawer. The existing champion facts are carried over from the project; this roster is a teaching dataset across different eras, not an official tournament entry list.
