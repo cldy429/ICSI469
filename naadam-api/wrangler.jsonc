@@ -3,6 +3,14 @@
   "name": "naadam-api",
   "main": "src/index.js",
   "compatibility_date": "2026-11-19",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "naadam-db",
+      "database_id": "6e6a2522-e4fd-475d-b1ee-ea581df88cfa",
+      "migrations_dir": "migrations"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

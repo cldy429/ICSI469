@@ -1,6 +1,5 @@
-import {SELF, env, runInDurableObject} from 'cloudflare:test';
+import {SELF, env, applyD1Migrations} from 'cloudflare:test';
 import {describe, it, expect} from 'vitest';
-import {initializeWrestlers} from '../src/wrestlers.js';
 
 const url = path => 'https://naadam.test' + path;
 const post = (path, body, client = crypto.randomUUID()) => SELF.fetch(url(path), {
@@ -65,17 +64,21 @@ describe('Naadam API', () => {
     expect(direct).toEqual(batch.items[0]);
   });
 
-  it('keeps stored changes when initialization is repeated', async () => {
-    await SELF.fetch(url('/api/wrestlers/511'));
-    await runInDurableObject(env.NAADAM.getByName('festival'), (_room, state) => {
-      const [{profile}] = state.storage.sql.exec('SELECT profile FROM wrestlers WHERE id = 511').toArray();
-      const edited = {...JSON.parse(profile), note: {mn: 'Хадгалсан өөрчлөлт', en: 'Saved edit'}};
-      state.storage.sql.exec('UPDATE wrestlers SET profile = ? WHERE id = 511', JSON.stringify(edited));
-      initializeWrestlers(state.storage);
-      const [{saved}] = state.storage.sql.exec("SELECT json_extract(profile, '$.note.mn') AS saved FROM wrestlers WHERE id = 511").toArray();
-      expect(saved).toBe('Хадгалсан өөрчлөлт');
-      state.storage.sql.exec('UPDATE wrestlers SET profile = ? WHERE id = 511', profile);
-    });
+  it('reads edited D1 records and does not replace them when migrations run again', async () => {
+    const original = await env.DB.prepare('SELECT * FROM wrestlers WHERE id = 511').first();
+    const edited = {...JSON.parse(original.profile), note: {mn: 'Хадгалсан өөрчлөлт', en: 'Saved edit'}};
+    await env.DB.prepare('UPDATE wrestlers SET name = ?, profile = ? WHERE id = 511')
+      .bind('D1 шинэ нэр', JSON.stringify(edited)).run();
+    await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
+    const profile = await (await SELF.fetch(url('/api/wrestlers/511'))).json();
+    expect(profile.name).toBe('D1 шинэ нэр');
+    expect(profile.note.mn).toBe('Хадгалсан өөрчлөлт');
+    const summaries = await (await SELF.fetch(url('/api/wrestlers?ids=511'))).json();
+    expect(summaries.items[0].name).toBe('D1 шинэ нэр');
+    const {total} = await env.DB.prepare('SELECT COUNT(*) AS total FROM wrestlers').first();
+    expect(total).toBe(512);
+    await env.DB.prepare('UPDATE wrestlers SET name = ?, profile = ? WHERE id = 511')
+      .bind(original.name, original.profile).run();
   });
 
   it('rejects invalid catalogue queries and does not offer unauthenticated writes', async () => {

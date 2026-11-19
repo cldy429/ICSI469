@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev",
-    "start": "wrangler dev",
+    "predeploy": "npm run db:migrate:remote",
+    "dev": "npm run db:migrate && wrangler dev",
+    "start": "npm run dev",
+    "db:migrate": "wrangler d1 migrations apply naadam-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply naadam-db --remote",
+    "db:count": "wrangler d1 execute naadam-db --local --command=\"SELECT COUNT(*) AS total_wrestlers FROM wrestlers\"",
     "test": "vitest run",
     "check": "wrangler deploy --dry-run --outdir .wrangler/check"
   },

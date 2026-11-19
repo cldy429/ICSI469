@@ -14,7 +14,7 @@ npm --prefix naadam-front ci
 npm run dev
 ```
 
-Open the frontend URL printed by Wrangler, usually **http://localhost:8787**. If another process already uses that port, Wrangler prints the next available port. Both Workers run together. To run only the backend, use `npm --prefix naadam-api run dev`.
+Open the frontend URL printed by Wrangler, usually **http://localhost:8787**. If another process already uses that port, Wrangler prints the next available port. Both Workers run together. The dev commands apply pending D1 migrations locally before starting Wrangler. To run only the backend, use `npm --prefix naadam-api run dev`.
 
 The frontend serves the site and forwards `/api/*` requests through its `API` service binding to `naadam-api`. The browser uses the same origin for assets and API requests.
 
@@ -31,7 +31,7 @@ The API provides:
 - `POST /api/comments/:id/like`: increment a comment's likes.
 - `POST /api/subscribe`: save or update a demo subscription.
 
-Wrestler profiles, comments, likes and subscriptions persist in a SQLite-backed Durable Object named `NaadamRoom`. All viewers use the same room. Local data lives in `naadam-api/.wrangler/` and is separate from deployed data. Photos are loaded from Wikimedia Commons.
+Wrestler profiles persist in the Cloudflare D1 database **`naadam-db`**, accessed by the backend through `env.DB`. Comments, likes and subscriptions persist in the SQLite-backed Durable Object `NaadamRoom`, which also coordinates shared race/chat SSE. All viewers use the same room. Local data is separate from deployed data: the combined frontend/API dev session uses `naadam-front/.wrangler/state`, while standalone API development uses `naadam-api/.wrangler/state`. The frontend dev command passes its persistence directory to the migration command so both use the same local D1 instance. Photos are loaded from Wikimedia Commons.
 
 Every page shows all recent comments by default, including general comments posted on the home page. The comment panel offers an explicit topic filter and keeps the topic badge on each entry. Successful submissions appear immediately and stay visible if an older refresh response arrives afterward.
 
@@ -39,7 +39,26 @@ Every page shows all recent comments by default, including general comments post
 
 The `wrestlers` SQL table contains exactly 512 registrations with stable numeric IDs (`0`–`511`). The original nine champion profiles and seven fictional stadium participants keep their IDs. Another 496 fictional wrestlers provide a mixture of state, aimag and sum titles. Fictional profiles are marked `isDemo: true` and labelled as demo wrestlers in the profile drawer. The existing champion facts are carried over from the project; this roster is a teaching dataset across different eras, not an official tournament entry list.
 
-`naadam-api/data/wrestlers.json` is the backend-only initial seed. `src/wrestlers.js` creates the table and inserts the 512 rows in a single transaction on the first database request. A `wrestlers-v1` entry in `schema_migrations` prevents subsequent restarts and deployments from replacing stored records. Existing comments and subscribers are preserved. There is no additional Cloudflare binding or manual database setup: deploying the updated backend is enough. Changes to the seed file after initialization require an explicit data migration; normal reads always use SQL, not the seed.
+`naadam-api/migrations/0001_wrestlers.sql` creates the D1 `wrestlers` table and inserts the 512 complete profiles. The `name` and `name_en` columns are editable directly in D1 Studio; the `profile` JSON column stores the full biography. Other searchable fields include `rank`, `rank_level`, `is_demo` and `featured`. The first migration was generated from `data/wrestlers.json` after checking it against all 512 profiles on the deployed site. The JSON file is retained as the original seed reference; it is no longer imported or bundled by the Worker.
+
+Wrangler records applied migrations in D1's `d1_migrations` table, so repeated migration commands and deploys do not replace edited records. Add a new numbered SQL migration for later schema/data changes; editing the JSON seed or an already-applied SQL migration will not update the live database. Local and remote D1 migrations are separate:
+
+```bash
+npm --prefix naadam-api run db:migrate
+npm --prefix naadam-api run db:migrate:remote
+```
+
+The backend handles `/api/wrestlers*` directly using D1 prepared statements. Other API routes continue to use `NaadamRoom`. The previous Durable Object wrestler table is retained as an old copy and is no longer queried by the updated backend.
+
+To inspect deployed data, open **Cloudflare → D1 SQL database → naadam-db → Studio**. Useful queries:
+
+```sql
+SELECT COUNT(*) AS total_wrestlers FROM wrestlers;
+SELECT id, name, rank, rank_level FROM wrestlers ORDER BY id;
+SELECT rank_level, COUNT(*) AS total FROM wrestlers GROUP BY rank_level;
+```
+
+For local inspection, open the D1 binding in Local Explorer while the dev server is running. `npm --prefix naadam-api run db:count` inspects the standalone API's local database. To inspect the combined dev session's database, run `npx wrangler d1 execute naadam-db --local --persist-to ../naadam-front/.wrangler/state --command="SELECT COUNT(*) AS total_wrestlers FROM wrestlers"` from `naadam-api`.
 
 The frontend no longer stores profiles in `data.js`. On startup it fetches nine small summaries for the existing home page and bracket. When a wrestling field becomes active, it prepares the 16 participants' full profiles in a batch before showing their markers. If the stream introduces a new participant ID, that participant is prepared before its marker changes. Requests for the same ID share in-flight work; full profiles stay in memory for five minutes, and cached clicks open immediately without another API request. Portraits are warmed in the background. Failed preparation offers a retry without displaying incomplete participants.
 
@@ -49,14 +68,15 @@ The profile drawer now works for fictional wrestlers too. Clicking a stadium mar
 
 ```text
 naadam-api/
-  data/wrestlers.json      initial 512-profile seed, never shipped as frontend assets
+  data/wrestlers.json      original seed reference, not imported by the Worker
   data/festival.json       existing festival summary
+  migrations/0001_wrestlers.sql  D1 schema and the complete initial 512-profile dataset
   src/index.js            API routing and wrestling SSE
-  src/wrestlers.js         SQL initialization, summaries and full-profile queries
+  src/wrestlers.js         D1 summaries and full-profile queries
   src/room.js             persistent comments, likes, subscriptions and shared race/chat SSE
   src/responses.js        JSON/body handling and SSE cleanup
   src/wrestling-demo.js   source of the one-minute dummy data
-  wrangler.jsonc          backend Worker, SQLite Durable Object binding and migration
+  wrangler.jsonc          backend Worker, D1 binding and Durable Object configuration
   test/index.spec.js      API integration checks
 
 naadam-front/
@@ -88,7 +108,9 @@ npm run deploy:api
 npm run deploy:front
 ```
 
-The backend deploy creates its SQLite-backed Durable Object through the `v1` migration in its configuration. The frontend's `API` binding points to the Worker named `naadam-api`. Both Workers must belong to the same Cloudflare account. If you change the backend name, update the frontend's `services[0].service` value too.
+The backend's `predeploy` script applies pending D1 migrations remotely before deploying. The repository is configured for the existing `naadam-db` database in this project's Cloudflare account. When deploying to another account, create its own database with `npx wrangler d1 create naadam-db` from `naadam-api` and replace `d1_databases[0].database_id` with the returned ID. Database IDs are configuration identifiers, not secrets.
+
+The backend deploy also keeps its SQLite-backed Durable Object through the `v1` migration in its configuration. The frontend's `API` binding points to the Worker named `naadam-api`. Both Workers must belong to the same Cloudflare account. If you change the backend name, update the frontend's `services[0].service` value too.
 
 Open the **naadam-front** deployment URL. Verify `/api/health`, then open `/#wrestling`. Subscribe, comment and like requests are processed by the backend through this frontend URL.
 
@@ -107,10 +129,10 @@ In Cloudflare, open **Workers & Pages → Create application → GitHub** and se
 
 | Worker | Root directory | Build command | Deploy command |
 | --- | --- | --- | --- |
-| naadam-api | `naadam-api` | leave empty | `npx wrangler deploy` |
+| naadam-api | `naadam-api` | leave empty | `npm run deploy` |
 | naadam-front | `naadam-front` | `npm run build` | `npx wrangler deploy` |
 
-Use `main` as the production branch and keep the Worker names exactly as shown. Deploy `naadam-api` successfully before creating `naadam-front`, because the frontend's service binding requires the backend to exist. For existing Workers, connect the repository under **Settings → Builds → Connect**.
+Use `main` as the production branch and keep the Worker names exactly as shown. For the existing API Git integration, update its Deploy command to `npm run deploy` to run D1 migrations before future deployments. The build token needs D1 write access to apply migrations, as well as access to deploy the Worker. Deploy `naadam-api` successfully before creating `naadam-front`, because the frontend's service binding requires the backend to exist. For existing Workers, connect the repository under **Settings → Builds → Connect**.
 
 Set the frontend's Build command explicitly in the dashboard: Workers Builds does not honor the Custom Builds settings in Wrangler configuration. Keep both folders in the repository because the frontend build copies the dummy data module from the backend. Once both projects are connected, pushes to `main` trigger automatic deployments. See the [Cloudflare Git integration](https://developers.cloudflare.com/workers/ci-cd/builds/) and [build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) documentation.
 
@@ -142,7 +164,7 @@ The check commands build the deployment packages locally using `wrangler deploy 
 
 ## Tech
 
-Vanilla JS ES modules, inline SVG with CSS transitions, WebAudio, Cloudflare Workers, Server-Sent Events and SQLite-backed Durable Objects.
+Vanilla JS ES modules, inline SVG with CSS transitions, WebAudio, Cloudflare Workers, Cloudflare D1, Server-Sent Events and SQLite-backed Durable Objects.
 
 ## Sources
 
