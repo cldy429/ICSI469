@@ -1,5 +1,5 @@
 // NAADAM splash — сайт нээгдэхэд бүтэн дэлгэцээр Монгол бичгийн гарчиг гарна.
-// Дээр нь дарах (эсвэл Enter / Space / Esc) үед гэрийн хаалга шиг хоёр тийш нээгдэж сайт руу орно.
+// 2.5 секундын дараа автоматаар нээгдэнэ. Дарж эсвэл товчлуур ашиглан эрт алгасаж болно.
 // app.js-ээс өмнө энгийн script байдлаар ачаалагдана, тиймээс сайт splash-гүй харагдах агшин байхгүй.
 
 (() => {
@@ -10,7 +10,7 @@
   splash.className = 'splash';
   splash.setAttribute('role', 'button');
   splash.setAttribute('tabindex', '0');
-  splash.setAttribute('aria-label', 'Наадам — нэвтрэхийн тулд дарна уу');
+  splash.setAttribute('aria-label', 'Наадам — автоматаар нээгдэнэ. Дарж танилцуулгыг алгасаж болно');
   splash.dataset.i18nSkip = '';
   splash.innerHTML = `
     <div class="splash-door splash-door-left" aria-hidden="true"></div>
@@ -34,7 +34,7 @@
       </div>
       <p class="splash-title">ЭРИЙН ГУРВАН <em>НААДАМ</em></p>
       <p class="splash-sub">Бөх · Хурдан морь · Сур харваа</p>
-      <span class="splash-hint">✦ Нэвтрэхийн тулд дарна уу ✦</span>
+      <span class="splash-hint">✦ Тавтай морил ✦</span>
     </div>`;
 
   document.body.prepend(splash);
@@ -42,9 +42,11 @@
   splash.focus({ preventScroll: true });
 
   let opened = false;
+  let autoOpenTimer;
   function open() {
     if (opened) return;
     opened = true;
+    clearTimeout(autoOpenTimer);
     splash.classList.add('is-open');
     document.documentElement.classList.remove('splash-lock');
     const done = () => {
@@ -54,6 +56,8 @@
     if (reducedMotion) done();
     else setTimeout(done, 1300);
   }
+
+  autoOpenTimer = setTimeout(open, reducedMotion ? 300 : 2500);
 
   splash.addEventListener('click', open);
   splash.addEventListener('keydown', e => {
