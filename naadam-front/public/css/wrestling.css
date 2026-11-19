@@ -2,6 +2,20 @@
   padding-top: 0;
 }
 
+.wt-data-status {
+  grid-area: 1 / 1;
+  place-self: center;
+  z-index: 3;
+  padding: 12px 18px;
+  border: 1px solid #647369;
+  border-radius: 10px;
+  color: #fff6dc;
+  background: #142b29;
+}
+.wt-data-status[hidden] { display: none; }
+.wt-data-status button, .app-data-status button { margin-left: 8px; text-decoration: underline; }
+.app-data-status { position: fixed; bottom: 20px; left: 20px; right: 20px; z-index: 80; padding: 14px 20px; background: #142b29; color: #fff6dc; border-radius: 10px; }
+
 .wt-sr-only {
   position: absolute;
   width: 1px;

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.mjs",
     "dev": "wrangler dev -c wrangler.jsonc -c ../naadam-api/wrangler.jsonc",
     "start": "npm run dev",
     "deploy": "wrangler deploy",

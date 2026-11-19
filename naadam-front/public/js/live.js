@@ -1,7 +1,8 @@
 // NAADAM live — бодит зураг, бөхийн профайл + давах магадлал, ялагчийн баяр,
 // дуу, барианы самбар, наадмын талбай дээрх цэгүүд, Live хуудас, үзэгчдийн сэтгэгдэл, subscription.
 // app.js-ийн 'naadam:*' үйл явдлуудыг сонсож ажиллана.
-import {PHOTOS, LEGENDS, DEMO_WRESTLERS, WRESTLING_RANKS, NAADAM_2026, rating, winChance, SOURCES} from './data.js';
+import {PHOTOS, WRESTLING_RANKS, rating, winChance, SOURCES} from './data.js';
+import {LEGENDS, NAADAM_2026, getWrestler, cachedWrestler, prefetchWrestlers} from './wrestlers.js';
 import {WrestlingField, RaceField, ArcheryField, fighterStates, setFieldLabels} from './field.js';
 import {WrestlingTracker} from './wrestling.js';
 
@@ -23,9 +24,9 @@ const initials = l => { const given = l.name.split(' ').pop(), parts = given.spl
 const AVATAR_COLORS = [['#e0524a', '#7a1f2b'], ['#3d8bd4', '#173e63'], ['#e8b86a', '#9a5b1e'], ['#5cc98a', '#1f5e44'], ['#b07ad8', '#4a2468'], ['#f08a4b', '#8a3a12'], ['#4fc1c9', '#145a63'], ['#d8697f', '#6b2133']];
 const avatar = (i, cls = '') => {
   const [c1, c2] = AVATAR_COLORS[i % AVATAR_COLORS.length];
-  const photo = LEGENDS[i].photo;
-  return photo ? `<span class="lv-avatar has-photo ${cls}" style="--c1:${c1};--c2:${c2};background-image:url('${photo.src}')" role="img" aria-label="${esc(legendName(LEGENDS[i]))}"></span>`
-    : `<span class="lv-avatar ${cls}" style="--c1:${c1};--c2:${c2}">${esc(initials(LEGENDS[i]))}</span>`;
+  const wrestler = getWrestler(i), photo = wrestler?.photo;
+  return photo ? `<span class="lv-avatar has-photo ${cls}" style="--c1:${c1};--c2:${c2};background-image:url('${photo.src}')" role="img" aria-label="${esc(legendName(wrestler))}"></span>`
+    : `<span class="lv-avatar ${cls}" style="--c1:${c1};--c2:${c2}">${wrestler ? esc(initials(wrestler)) : '…'}</span>`;
 };
 const last = name => window.naadamLast?.[name];
 
@@ -177,7 +178,12 @@ function buildHomeSections() {
   const sub = el(`<section class="lv-section lv-home-extra" id="lv-subscribe"></section>`);
   const n26 = naadam2026(); n26.classList.add('lv-home-extra');
   lower.after(legends, n26, talk, sub);
-  $$('[data-legend]', legends).forEach(b => b.addEventListener('click', () => openProfile(+b.dataset.legend)));
+  $$('[data-legend]', legends).forEach(b => {
+    b.addEventListener('click', () => openProfile(+b.dataset.legend));
+    const prepare = () => prefetchWrestlers([+b.dataset.legend]).catch(() => {});
+    b.addEventListener('pointerenter', prepare);
+    b.addEventListener('focus', prepare);
+  });
   buildSubscription(sub);
   mountComments($('[data-comments="home"]', talk), 'home');
   buildCredits();
@@ -473,20 +479,85 @@ function countUp(node, to, suffix = '') {
   requestAnimationFrame(step);
 }
 
-let drawer = null;
-function openProfile(i) {
-  const l = LEGENDS[i]; if (!l) return;
+let drawer = null, drawerCleanup = null, profileRequest = 0;
+function mountProfile(node) {
+  const returnFocus = drawer?.returnFocus ?? document.activeElement;
+  drawerCleanup?.();
   drawer?.remove();
+  drawer = node;
+  node.returnFocus = returnFocus;
+  document.body.append(node);
+  const close = () => {
+    if (drawer !== node) return;
+    profileRequest++;
+    drawerCleanup?.();
+    drawerCleanup = null;
+    drawer = null;
+    node.classList.remove('open');
+    setTimeout(() => node.remove(), 500);
+    if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true});
+  };
+  const onKey = event => {
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
+    if (event.key === 'Tab') {
+      const buttons = $$('button:not(:disabled), a[href]', node);
+      const target = event.shiftKey && document.activeElement === buttons[0] ? buttons.at(-1)
+        : !event.shiftKey && document.activeElement === buttons.at(-1) ? buttons[0] : null;
+      if (target) { event.preventDefault(); target.focus(); }
+    }
+  };
+  $('.lv-close', node).onclick = close;
+  $('.lv-backdrop', node).onclick = close;
+  document.addEventListener('keydown', onKey, true);
+  drawerCleanup = () => document.removeEventListener('keydown', onKey, true);
+  requestAnimationFrame(() => {
+    if (drawer !== node) return;
+    node.classList.add('open');
+    $('.lv-close', node).focus();
+  });
+  return close;
+}
+
+function profileState(i, error = false) {
+  const wrestler = getWrestler(i);
+  const node = el(`<div class="lv-drawer-wrap" role="dialog" aria-modal="true" aria-label="${t('Бөхийн мэдээлэл', 'Wrestler profile')}" data-profile-state="${error ? 'error' : 'loading'}">
+    <div class="lv-backdrop"></div><aside class="lv-drawer"><div class="lv-drawer-hero">
+      <button type="button" class="lv-close" aria-label="${t('Хаах', 'Close')}">✕</button>
+      <h3>${esc(wrestler ? legendName(wrestler) : t('Бөхийн мэдээлэл', 'Wrestler profile'))}</h3>
+    </div><div class="lv-drawer-body"><p role="status">${error ? t('Мэдээллийг татаж чадсангүй.', 'Could not load this profile.') : t('Мэдээллийг бэлдэж байна…', 'Preparing the profile…')}</p>
+      ${error ? `<button type="button" class="lv-btn ghost" data-profile-retry>${t('Дахин оролдох', 'Try again')}</button>` : ''}
+    </div></aside></div>`);
+  mountProfile(node);
+  $('[data-profile-retry]', node)?.addEventListener('click', () => openProfile(i));
+}
+
+async function openProfile(i) {
+  const request = ++profileRequest;
+  if (!cachedWrestler(i)) {
+    profileState(i);
+    try { await prefetchWrestlers([i]); }
+    catch {
+      if (request === profileRequest) profileState(i, true);
+      return;
+    }
+  }
+  if (request !== profileRequest) return;
+  renderProfile(i);
+}
+
+function renderProfile(i) {
+  const l = cachedWrestler(i); if (!l) return;
   const [a, b] = currentPair(), inNext = last('bracket')?.next && (i === a || i === b);
   const opp = i === a ? b : a, chance = inNext ? winChance(l, LEGENDS[opp]) : null;
   const pathHtml = (l.path || []).map(([level, year, mn, en]) => `<li class="lv-step ${level}"><i></i><span><b>${esc(t(mn, en))}</b><small>${year ?? '—'} · ${t({sum: 'Сумын', aimag: 'Аймгийн', state: 'Улсын'}[level], {sum: 'Sum', aimag: 'Aimag', state: 'State'}[level])} ${t('наадам', 'Naadam')}</small></span></li>`).join('');
-  drawer = el(`<div class="lv-drawer-wrap" role="dialog" aria-modal="true" aria-label="${esc(legendName(l))}">
+  const node = el(`<div class="lv-drawer-wrap" role="dialog" aria-modal="true" aria-label="${esc(legendName(l))}" data-wrestler-id="${i}" data-profile-state="ready">
     <div class="lv-backdrop"></div>
     <aside class="lv-drawer">
       <div class="lv-drawer-hero" style="--hero:url('${(l.photo || PHOTOS.wrestlers).src}')">
         <button type="button" class="lv-close" aria-label="${t('Хаах', 'Close')}">✕</button>
         ${avatar(i, 'lv-avatar-xl')}
         <h3>${esc(legendName(l))}</h3>
+        ${l.isDemo ? `<p class="lv-demo-profile">${t('Зохиомол демо бөх', 'Fictional demo wrestler')}</p>` : ''}
         <p><span class="lv-rank-chip">${esc(t(l.title.mn, l.title.en))}</span> ${esc(lang() === 'mn' ? l.full : l.en)}</p>
         ${l.photo ? `<span class="lv-photo-credit">📷 <a href="${l.photo.page}" target="_blank" rel="noopener">${esc(l.photo.author)}</a> · ${l.photo.license}</span>`
           : `<span class="lv-photo-credit">${t('Чөлөөт лицензтэй хөрөг олдсонгүй · Ард: наадмын бөх', 'No free-licence portrait found · Background: Naadam wrestlers')} (${esc(PHOTOS.wrestlers.author)}, ${PHOTOS.wrestlers.license})</span>`}
@@ -498,7 +569,7 @@ function openProfile(i) {
           <div><b data-count="${rating(l)}">0</b><small>${t('Хүч (симуляц)', 'Rating (sim)')}</small></div>
         </div>
         <div class="lv-facts">
-          <div><small>${t('ТӨРСӨН', 'BORN')}</small><b>${l.born}</b></div>
+          <div><small>${t('ТӨРСӨН', 'BORN')}</small><b>${l.born ?? '—'}</b></div>
           <div><small>${t('НУТАГ', 'HOMETOWN')}</small><b>${esc(t(l.home.mn, l.home.en))}</b></div>
           <div><small>${t('УЛСАД ТҮРҮҮЛСЭН', 'STATE TITLES')}</small><b>${esc(l.years)}</b></div>
         </div>
@@ -510,22 +581,16 @@ function openProfile(i) {
           <div class="lv-prob"><div class="lv-prob-bar"><i style="width:0"></i><i style="width:100%"></i></div><div class="lv-prob-nums"><span>${t('Давах', 'Win')} <b data-count="${Math.round(chance * 100)}">0</b>%</span><span></span></div></div>
           <p class="lv-prob-note">※ ${t('Магадлал нь симуляц', 'Win chance is a simulation')}</p></div>` : ''}
         ${i < 8 ? `<button type="button" class="lv-btn red lv-watch" data-live="${i}"><i></i>${t('Live үзэх', 'Watch live')} →</button>` : ''}
-        <p class="lv-src">${t('Эх сурвалж', 'Source')}: <a href="${l.wiki}" target="_blank" rel="noopener">${t('Википедиа', 'Wikipedia (mn)')} — ${esc(l.full)}</a> · <a href="${SOURCES.wrestling}" target="_blank" rel="noopener">Wikipedia — Mongolian wrestling</a></p>
+        ${l.wiki ? `<p class="lv-src">${t('Эх сурвалж', 'Source')}: <a href="${l.wiki}" target="_blank" rel="noopener">${t('Википедиа', 'Wikipedia (mn)')} — ${esc(l.full)}</a> · <a href="${SOURCES.wrestling}" target="_blank" rel="noopener">Wikipedia — Mongolian wrestling</a></p>` : ''}
       </div>
     </aside>
   </div>`);
-  document.body.append(drawer);
-  const close = () => { drawer.classList.remove('open'); const d = drawer; setTimeout(() => d.remove(), 500); document.removeEventListener('keydown', onKey); };
-  const onKey = e => { if (e.key === 'Escape') close(); };
-  $('.lv-close', drawer).addEventListener('click', close);
-  $('.lv-backdrop', drawer).addEventListener('click', close);
-  $('[data-live]', drawer)?.addEventListener('click', () => { close(); watchLive(i); });
-  document.addEventListener('keydown', onKey);
+  const close = mountProfile(node);
+  $('[data-live]', node)?.addEventListener('click', () => { close(); watchLive(i); });
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    drawer.classList.add('open');
-    $('.lv-close', drawer).focus();
-    $$('[data-count]', drawer).forEach(n => setTimeout(() => countUp(n, +n.dataset.count), 250));
-    if (chance != null) { const bars = $$('.lv-prob-bar i', drawer); setTimeout(() => { bars[0].style.width = chance * 100 + '%'; bars[1].style.width = (1 - chance) * 100 + '%'; }, 300); }
+    if (drawer !== node) return;
+    $$('[data-count]', node).forEach(n => setTimeout(() => countUp(n, +n.dataset.count), 250));
+    if (chance != null) { const bars = $$('.lv-prob-bar i', node); setTimeout(() => { bars[0].style.width = chance * 100 + '%'; bars[1].style.width = (1 - chance) * 100 + '%'; }, 300); }
   }));
   sound.tone(520, .08);
 }
@@ -691,6 +756,9 @@ function setLiveTab(tab) {
   $$('#live-root [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
   const host = $('#lv-live-field'); if (!host) return;
   if (tab === 'wrestling') liveField = new WrestlingField(host, wrestlerOpts(openProfile));
+  if (tab === 'wrestling' && window.naadamApp?.page === 'live') {
+    prefetchWrestlers(Array.from({length: 8}, (_, i) => i)).catch(() => {});
+  }
   if (tab === 'racing') liveField = new RaceField(host, {onPick: pickRacer});
   if (tab === 'archery') liveField = new ArcheryField(host);
   refreshLive();
@@ -803,13 +871,14 @@ setInterval(() => {
 
 /* ---------------- Boot + language/theme refresh ---------------- */
 const wrestlingTracker = new WrestlingTracker($('#wrestling-tracker'), {
+  prepare: prefetchWrestlers,
   describe: i => {
-    const legend = LEGENDS[i];
-    const wrestler = legend ?? DEMO_WRESTLERS[i - LEGENDS.length];
+    const wrestler = getWrestler(i);
+    if (!wrestler) return {name: '…', shortName: '…', title: '', rank: WRESTLING_RANKS.falcon, hasProfile: false};
     const rank = WRESTLING_RANKS[wrestler.rank];
     const name = legendName(wrestler);
-    const title = legend?.title[lang()] ?? t(`Улсын ${rank.mn.toLowerCase()}`, `State ${rank.en}`);
-    return {name, shortName: name.slice(name.indexOf(' ') + 1), title, rank, hasProfile: Boolean(legend)};
+    const title = wrestler.title[lang()];
+    return {name, shortName: name.slice(name.indexOf(' ') + 1), title, rank, hasProfile: true};
   },
   ranks: () => Object.values(WRESTLING_RANKS).map(rank => ({...rank, label: rank[lang()]})),
   onPick: openProfile,
@@ -823,7 +892,10 @@ const wrestlingTracker = new WrestlingTracker($('#wrestling-tracker'), {
 });
 const syncWrestling = () => {
   const bracket = last('bracket');
-  const pair = bracket?.next ?? bracket?.winners.slice(4, 6);
+  const params = new URLSearchParams(location.search);
+  const selected = ['red', 'blue'].map(key => /^\d+$/.test(params.get(key) ?? '') ? Number(params.get(key)) : -1);
+  const pair = selected.every(id => id >= 0 && id < 512) && selected[0] !== selected[1]
+    ? selected : bracket?.next ?? bracket?.winners.slice(4, 6);
   wrestlingTracker.sync(pair, !$('#splash') && window.naadamApp?.page === 'wrestling');
 };
 window.addEventListener('naadam:page', syncWrestling);

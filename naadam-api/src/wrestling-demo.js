@@ -5,7 +5,6 @@ export const DEFAULT_WRESTLING_PAIR = [0, 1];
 // The eight pairs stay in separate areas on the field. Coordinates are map percentages.
 const centers = [[12, 27], [37, 27], [63, 27], [88, 27], [12, 73], [37, 73], [63, 73], [88, 73]];
 const headings = [-.34, .42, -.26, .22, .30, -.38, .26, -.28];
-const wrestlerIds = Array.from({length: WRESTLING_BOUT_COUNT * 2}, (_, id) => id);
 const turn = 2 * Math.PI;
 const winReaction = {event: 'win', levels: [5, 5, 4, 3, 2], chant: 'Далайцэрэн давсааан'};
 
@@ -29,6 +28,9 @@ const crowdFrames = Array.from({length: WRESTLING_DURATION + 1}, (_, second) => 
 });
 
 export function wrestlingLineup(featuredPair) {
+  const size = WRESTLING_BOUT_COUNT * 2;
+  const start = Math.floor(featuredPair[0] / size) * size;
+  const wrestlerIds = Array.from({length: size}, (_, offset) => start + offset);
   const others = wrestlerIds.filter(id => !featuredPair.includes(id));
   return [featuredPair, ...Array.from({length: WRESTLING_BOUT_COUNT - 1}, (_, i) => others.slice(i * 2, i * 2 + 2))];
 }

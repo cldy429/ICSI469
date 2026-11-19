@@ -1,5 +1,6 @@
 // NAADAM frontend — simulated sport events are explicitly marked as DEMO.
-import {LEGENDS,winChance} from './data.js';
+import {winChance} from './data.js';
+import {LEGENDS} from './wrestlers.js';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const pages=['home','wrestling','racing','archery','live'];

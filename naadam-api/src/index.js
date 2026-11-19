@@ -1,6 +1,7 @@
 import {NaadamRoom} from './room.js';
 import {streamEvents, json} from './responses.js';
-import {DEFAULT_WRESTLING_PAIR, WRESTLING_DURATION, WRESTLING_BOUT_COUNT, wrestlingLineup, wrestlingPacket} from './wrestling-demo.js';
+import {DEFAULT_WRESTLING_PAIR, WRESTLING_DURATION, wrestlingLineup, wrestlingPacket} from './wrestling-demo.js';
+import {WRESTLER_COUNT} from './wrestlers.js';
 
 export {NaadamRoom};
 
@@ -14,8 +15,8 @@ function wrestlingEvents(request) {
     })
     : DEFAULT_WRESTLING_PAIR;
 
-  if (pair.some(id => id < 0 || id >= WRESTLING_BOUT_COUNT * 2) || pair[0] === pair[1]) {
-    return json({error: 'Choose two distinct wrestler IDs from 0 to 15'}, 400);
+  if (pair.some(id => id < 0 || id >= WRESTLER_COUNT) || pair[0] === pair[1]) {
+    return json({error: 'Choose two distinct wrestler IDs from 0 to 511'}, 400);
   }
 
   const lineup = wrestlingLineup(pair);
@@ -40,7 +41,8 @@ export default {
         if (request.method !== 'GET') return json({error: 'method not allowed'}, 405, {Allow: 'GET'});
         return wrestlingEvents(request);
       }
-      if (pathname === '/api/events' || pathname === '/api/comments' || pathname === '/api/subscribe'
+      if (pathname === '/api/wrestlers' || pathname.startsWith('/api/wrestlers/')
+        || pathname === '/api/events' || pathname === '/api/comments' || pathname === '/api/subscribe'
         || /^\/api\/comments\/[a-z0-9]+\/like$/.test(pathname)) {
         return await env.NAADAM.getByName('festival').fetch(request);
       }

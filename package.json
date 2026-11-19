@@ -7,7 +7,7 @@
     "start": "npm --prefix naadam-front run dev",
     "dev": "npm --prefix naadam-front run dev",
     "build": "npm --prefix naadam-front run build",
-    "test": "npm --prefix naadam-api test",
+    "test": "npm --prefix naadam-api test && npm --prefix naadam-front test",
     "deploy:api": "npm --prefix naadam-api run deploy",
     "deploy:front": "npm --prefix naadam-front run deploy"
   }

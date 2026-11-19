@@ -21,19 +21,36 @@ The frontend serves the site and forwards `/api/*` requests through its `API` se
 The API provides:
 
 - `GET /api/health`: backend health.
+- `GET /api/wrestlers`: paginated summaries of the 512 database registrations (`limit` up to 64, `offset`, optional `level=state|aimag|sum`).
+- `GET /api/wrestlers?featured=1`: the nine existing champion summaries and festival metadata used on the home page.
+- `GET /api/wrestlers?details=1&ids=0,1,2`: full profiles for up to 32 IDs, used to prepare field participants.
+- `GET /api/wrestlers/:id`: one full profile, with IDs from 0 to 511.
 - `GET /api/events`: shared race telemetry every 1.2 seconds and live comment/like events.
-- `GET /api/wrestling/events`: one minute of positions for 16 wrestlers in eight simultaneous bouts, streamed once per second. Optional `red` and `blue` parameters select the first pair using two distinct IDs from 0 to 15.
+- `GET /api/wrestling/events`: one minute of positions for 16 wrestlers in eight simultaneous bouts, streamed once per second. Optional `red` and `blue` parameters select the first pair using two distinct IDs from 0 to 511.
 - `GET/POST /api/comments`: viewer comments by topic (`home`, `wrestling`, `racing`, `archery`, `live`).
 - `POST /api/comments/:id/like`: increment a comment's likes.
 - `POST /api/subscribe`: save or update a demo subscription.
 
-Comments, likes and subscriptions persist in a SQLite-backed Durable Object named `NaadamRoom`. All viewers use the same room. Local data lives in `naadam-api/.wrangler/` and is separate from deployed data. Photos are loaded from Wikimedia Commons.
+Wrestler profiles, comments, likes and subscriptions persist in a SQLite-backed Durable Object named `NaadamRoom`. All viewers use the same room. Local data lives in `naadam-api/.wrangler/` and is separate from deployed data. Photos are loaded from Wikimedia Commons.
+
+## Wrestler database and preparation
+
+The `wrestlers` SQL table contains exactly 512 registrations with stable numeric IDs (`0`–`511`). The original nine champion profiles and seven fictional stadium participants keep their IDs. Another 496 fictional wrestlers provide a mixture of state, aimag and sum titles. Fictional profiles are marked `isDemo: true` and labelled as demo wrestlers in the profile drawer. The existing champion facts are carried over from the project; this roster is a teaching dataset across different eras, not an official tournament entry list.
+
+`naadam-api/data/wrestlers.json` is the backend-only initial seed. `src/wrestlers.js` creates the table and inserts the 512 rows in a single transaction on the first database request. A `wrestlers-v1` entry in `schema_migrations` prevents subsequent restarts and deployments from replacing stored records. Existing comments and subscribers are preserved. There is no additional Cloudflare binding or manual database setup: deploying the updated backend is enough. Changes to the seed file after initialization require an explicit data migration; normal reads always use SQL, not the seed.
+
+The frontend no longer stores profiles in `data.js`. On startup it fetches nine small summaries for the existing home page and bracket. When a wrestling field becomes active, it prepares the 16 participants' full profiles in a batch before showing their markers. If the stream introduces a new participant ID, that participant is prepared before its marker changes. Requests for the same ID share in-flight work; full profiles stay in memory for five minutes, and cached clicks open immediately without another API request. Portraits are warmed in the background. Failed preparation offers a retry without displaying incomplete participants.
+
+The profile drawer now works for fictional wrestlers too. Clicking a stadium marker opens the prepared profile and retains the compact bout panel. To inspect a different group locally or after deployment, open `/?red=16&blue=17#wrestling` (mixed state/aimag/sum ranks) or `/?red=510&blue=511#wrestling`. These query parameters override the featured pair for the stadium; the existing fantasy bracket remains separate.
 
 ## Folders
 
 ```text
 naadam-api/
+  data/wrestlers.json      initial 512-profile seed, never shipped as frontend assets
+  data/festival.json       existing festival summary
   src/index.js            API routing and wrestling SSE
+  src/wrestlers.js         SQL initialization, summaries and full-profile queries
   src/room.js             persistent comments, likes, subscriptions and shared race/chat SSE
   src/responses.js        JSON/body handling and SSE cleanup
   src/wrestling-demo.js   source of the one-minute dummy data
@@ -44,6 +61,7 @@ naadam-front/
   public/index.html       page skeleton
   public/css/             styles
   public/js/              routing, sport views, language, theme and crowd animation
+  public/js/wrestlers.js  API summaries and deduplicated profile cache
   src/index.js            /api proxy to the backend
   scripts/build.mjs       copies the API demo module for offline playback
   wrangler.jsonc          frontend Worker, static assets and API service binding

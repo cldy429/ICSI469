@@ -1,5 +1,6 @@
 import {DurableObject} from 'cloudflare:workers';
 import {json, readJson, streamEvents} from './responses.js';
+import {initializeWrestlers, wrestlerResponse} from './wrestlers.js';
 
 const TOPICS = new Set(['home', 'wrestling', 'racing', 'archery', 'live']);
 const clean = (value, max) => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
@@ -34,12 +35,16 @@ export class NaadamRoom extends DurableObject {
         posted_at INTEGER NOT NULL
       );
     `);
+    ctx.blockConcurrencyWhile(async () => initializeWrestlers(ctx.storage));
   }
 
   async fetch(request) {
     const url = new URL(request.url);
     const {pathname} = url;
     try {
+      if (pathname === '/api/wrestlers' || pathname.startsWith('/api/wrestlers/')) {
+        return wrestlerResponse(request, this.ctx.storage.sql);
+      }
       if (pathname === '/api/events' && request.method === 'GET') return this.events();
       if (pathname === '/api/comments' && request.method === 'GET') {
         const topic = url.searchParams.get('topic');

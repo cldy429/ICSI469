@@ -12,10 +12,13 @@ const PHASES = {
 const CROWD_EVENTS = new Map([['move', 'Мэх хийлээ'], ['win', 'Бөх давлаа']]);
 
 export class WrestlingTracker {
-  constructor(root, {describe, ranks, onPick, onCheer}) {
+  constructor(root, {describe, ranks, prepare, onPick, onCheer}) {
     this.root = root;
     this.describe = describe;
     this.ranks = ranks;
+    this.prepare = prepare;
+    this.onPick = onPick;
+    this.generation = 0;
     this.onCheer = onCheer;
     this.pair = DEFAULT_WRESTLING_PAIR;
     this.lineup = wrestlingLineup(this.pair);
@@ -34,6 +37,8 @@ export class WrestlingTracker {
     this.crowdEvent = this.crowdMeter.querySelector('#wt-crowd-event');
     this.chantAnnouncement = this.crowdMeter.querySelector('#wt-crowd-chant');
     this.wrestlers = [...root.querySelectorAll('[data-wrestler]')];
+    this.dataStatus = root.querySelector('#wt-data-status');
+    this.dataStatus.querySelector('button').addEventListener('click', () => this.play());
     const pick = async slot => {
       const id = this.lineup[this.selected][slot];
       if (!this.describe(id).hasProfile) return;
@@ -131,6 +136,14 @@ export class WrestlingTracker {
     this.renderSelected();
     this.panel.hidden = false;
     this.closeButton.focus({preventScroll: true});
+    const id = this.lineup[index][Number(marker.dataset.side)];
+    this.pickProfile(id);
+  }
+
+  async pickProfile(id) {
+    if (!this.describe(id).hasProfile) return;
+    if (document.fullscreenElement === this.root) await document.exitFullscreen();
+    this.onPick(id);
   }
 
   closePanel(restoreFocus = false) {
@@ -143,6 +156,7 @@ export class WrestlingTracker {
   }
 
   stop() {
+    this.generation++;
     this.stream?.close();
     this.stream = null;
     clearTimeout(this.streamTimer);
@@ -219,8 +233,24 @@ export class WrestlingTracker {
     });
   }
 
-  play() {
+  async play() {
     this.stop();
+    const generation = this.generation;
+    this.root.dataset.profilesReady = 'false';
+    this.field.boutLayer.style.display = 'none';
+    this.dataStatus.hidden = false;
+    this.dataStatus.querySelector('span').textContent = 'Бөхчүүдийн мэдээллийг бэлдэж байна…';
+    this.dataStatus.querySelector('button').hidden = true;
+    try { await this.prepare(this.lineup.flat()); }
+    catch {
+      if (generation !== this.generation) return;
+      this.dataStatus.querySelector('span').textContent = 'Бөхчүүдийн мэдээллийг татаж чадсангүй.';
+      this.dataStatus.querySelector('button').hidden = false;
+      return;
+    }
+    if (generation !== this.generation || !this.active) return;
+    this.dataStatus.hidden = true;
+    this.root.dataset.profilesReady = 'true';
     this.updateNames();
     this.second = -1;
     this.render(wrestlingPacket(this.lineup, 0));
@@ -241,15 +271,28 @@ export class WrestlingTracker {
       this.streamTimer = setTimeout(fallback, STREAM_TIMEOUT);
     };
     let latest = -1;
+    let rendering = Promise.resolve();
     stream.onmessage = event => {
       if (this.stream !== stream) return;
       let packet;
       try { packet = JSON.parse(event.data); } catch { fallback(); return; }
       if (!this.isNextPacket(packet, latest)) return;
       latest = packet.second;
-      this.render(packet);
-      if (latest === WRESTLING_DURATION) this.finish();
-      else expectFrame();
+      expectFrame();
+      rendering = rendering.then(async () => {
+        if (this.stream !== stream) return;
+        const lineup = packet.bouts.map(bout => bout.wrestlers.map(wrestler => wrestler.id));
+        if (lineup.flat().join() !== this.lineup.flat().join()) {
+          // A new participant appearing in telemetry prepares its profile before becoming clickable.
+          await this.prepare(lineup.flat());
+          if (this.stream !== stream) return;
+          this.lineup = lineup;
+          this.closePanel();
+          this.updateNames();
+        }
+        this.render(packet);
+        if (packet.second === WRESTLING_DURATION) this.finish();
+      }).catch(fallback);
     };
     stream.onerror = fallback;
     expectFrame();
@@ -259,10 +302,11 @@ export class WrestlingTracker {
     return packet?.type === 'wrestling'
       && Number.isInteger(packet.second) && packet.second > latest && packet.second <= WRESTLING_DURATION
       && Array.isArray(packet.bouts) && packet.bouts.length === WRESTLING_BOUT_COUNT
-      && packet.bouts.every((bout, i) => typeof PHASES[bout?.phase] === 'string'
+      && packet.bouts.every(bout => typeof PHASES[bout?.phase] === 'string'
         && Array.isArray(bout.wrestlers) && bout.wrestlers.length === 2
-        && bout.wrestlers.every((wrestler, side) => wrestler?.id === this.lineup[i][side]
-          && [wrestler.x, wrestler.y].every(value => Number.isFinite(value) && value >= 0 && value <= 100)));
+        && bout.wrestlers.every(wrestler => Number.isInteger(wrestler?.id) && wrestler.id >= 0 && wrestler.id < 512
+          && [wrestler.x, wrestler.y].every(value => Number.isFinite(value) && value >= 0 && value <= 100)))
+      && new Set(packet.bouts.flatMap(bout => bout.wrestlers.map(wrestler => wrestler.id))).size === WRESTLING_BOUT_COUNT * 2;
   }
 
   playLocally() {
